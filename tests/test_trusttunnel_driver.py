@@ -375,3 +375,17 @@ def test_create_rejects_wrong_assignment_reply(wire, change):
     state["reply"] = snapshot(**change)
     with pytest.raises(OrchestratorError):
         driver.create(node, NodeGrant(CLIENT["external_id"], CLIENT["name"], EXPIRY))
+
+
+def test_composed_trusttunnel_uses_generic_http_not_amnezia_validation(wire):
+    from orchestrator.infrastructure.drivers.amnezia_http import AgentAPI
+
+    driver, node, state, calls = wire
+    state["reply"] = envelope(clients=[])
+    with AgentAPI(transport=driver.api.transport) as api:
+        gateway = build_gateway([node], None, api=api, experimental_trusttunnel=True)
+        try:
+            assert gateway.drivers.for_node(node).list(node) == []
+            assert [path for _, path, _ in calls] == ["/v1/health", "/v1/clients"]
+        finally:
+            gateway.close()

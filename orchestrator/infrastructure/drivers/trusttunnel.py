@@ -76,7 +76,7 @@ class TrustTunnelAgentDriver:
             raise OrchestratorError("node_identity_invalid", 503)
         if node.lease_enabled:
             raise OrchestratorError("control_lease_unavailable", 503)
-        value = self._parse(model, self.api.request(node, method, path, payload, no_store=True))
+        value = self._parse(model, self.api.send(node, method, path, payload, no_store=True))
         if value.server_id != node.server_id:
             raise OrchestratorError("node_identity_invalid", 503)
         return value

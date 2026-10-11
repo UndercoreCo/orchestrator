@@ -37,8 +37,11 @@ class NodeHTTP:
     def __exit__(self, *_):
         self.close()
 
+    def request(self, node, method, path, payload=None, text=False, **options):
+        return self.send(node, method, path, payload, text, **options)
+
     @bounded
-    def request(
+    def send(
         self,
         node,
         method,
