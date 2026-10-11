@@ -41,8 +41,8 @@ python_version = "3.12"
 follow_imports = "silent"
 check_untyped_defs = true
 warn_unused_ignores = true
-files = ["orchestrator/domain", "orchestrator/application/ports.py", "orchestrator/application/repository_ports.py", "orchestrator/application/drivers.py", "orchestrator/infrastructure/sqlite", "orchestrator/infrastructure/drivers/amneziawg.py", "orchestrator/infrastructure/drivers/amnezia_leases.py", "orchestrator/infrastructure/credentials.py", "scripts/check_types.py"]
+files = ["orchestrator/domain", "orchestrator/application/ports.py", "orchestrator/application/repository_ports.py", "orchestrator/application/drivers.py", "orchestrator/infrastructure/sqlite", "orchestrator/infrastructure/drivers/amneziawg.py", "orchestrator/infrastructure/drivers/amnezia_leases.py", "orchestrator/infrastructure/drivers/trusttunnel_configuration.py", "orchestrator/infrastructure/drivers/trusttunnel_contract.py", "orchestrator/infrastructure/drivers/trusttunnel.py", "orchestrator/infrastructure/credentials.py", "scripts/check_types.py"]
 
 [[tool.mypy.overrides]]
-module = ["orchestrator.application.ports", "orchestrator.application.repository_ports", "orchestrator.application.drivers", "orchestrator.infrastructure.drivers.amneziawg", "orchestrator.infrastructure.drivers.amnezia_leases", "scripts.check_types"]
+module = ["orchestrator.application.ports", "orchestrator.application.repository_ports", "orchestrator.application.drivers", "orchestrator.infrastructure.drivers.amneziawg", "orchestrator.infrastructure.drivers.amnezia_leases", "orchestrator.infrastructure.drivers.trusttunnel", "scripts.check_types"]
 disallow_untyped_defs = true

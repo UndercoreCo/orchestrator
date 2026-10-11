@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "experimental_trusttunnel": false,
   "state_directory": "/var/lib/vpn-orchestrator",
   "backend_token_file": "/etc/vpn-orchestrator/backend.token",
   "nodes": [

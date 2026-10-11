@@ -430,3 +430,15 @@ def test_runtime_does_not_silently_treat_trusttunnel_as_awg(tmp_path, monkeypatc
     monkeypatch.setenv("ORCHESTRATOR_SETTINGS", str(settings))
     with pytest.raises(OrchestratorError, match="unsupported_protocol"):
         agent_app()
+
+
+def test_v2_lookup_is_owned_read_only_and_returns_no_configuration(pilot):
+    gateway, engine, _, body = pilot
+    service = Connections(gateway)
+    assert service.lookup("missing") == {"connections": []}
+    assert not gateway.store.rows() and not engine.rows()
+    result = service.create(DeviceRequest.model_validate(request(body)))
+    found = service.lookup(result.device_id)
+    assert found == {"connections": [result.model_dump()]}
+    assert service.lookup("other-device") == {"connections": []}
+    assert "configuration" not in found["connections"][0]

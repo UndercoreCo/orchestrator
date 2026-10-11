@@ -14,14 +14,30 @@ from orchestrator.infrastructure.secrets import read_secret
 from orchestrator.infrastructure.sqlite.assignments import Assignments
 from orchestrator.infrastructure.drivers.amnezia_http import AgentAPI
 from orchestrator.infrastructure.drivers.amneziawg import AmneziaAgentDriver
+from orchestrator.infrastructure.drivers.trusttunnel import TrustTunnelAgentDriver
 from orchestrator.application.drivers import DriverRegistry, LeaseRegistry
 from orchestrator.application.gateway import AgentGateway
 from orchestrator.application.nodes import NodeRegistry
 
 
-def build_gateway(nodes, store, api=None, drivers=None, policy=None, telemetry=None):
+def configured_drivers(api, experimental_trusttunnel=False):
+    enabled = [AmneziaAgentDriver(api)]
+    if experimental_trusttunnel:
+        enabled.append(TrustTunnelAgentDriver(api))
+    return DriverRegistry(enabled)
+
+
+def build_gateway(
+    nodes,
+    store,
+    api=None,
+    drivers=None,
+    policy=None,
+    telemetry=None,
+    experimental_trusttunnel=False,
+):
     api = api if api is not None else AgentAPI(policy=policy.agents if policy else None)
-    drivers = drivers if drivers is not None else DriverRegistry([AmneziaAgentDriver(api)])
+    drivers = drivers if drivers is not None else configured_drivers(api, experimental_trusttunnel)
     return AgentGateway(
         nodes,
         store,
@@ -43,7 +59,7 @@ def load_settings(path=None, secrets=True):
     records = read_inventory(Path(settings.state_directory) / "assignments.sqlite3")
     effective = settings.model_copy(update={"nodes": records}) if records is not None else settings
     with AgentAPI(policy=settings.policy.agents) as api:
-        drivers = DriverRegistry([AmneziaAgentDriver(api)])
+        drivers = configured_drivers(api, settings.experimental_trusttunnel)
         for node in validate_nodes(effective, secrets):
             drivers.for_node(node)
     return settings
@@ -56,7 +72,7 @@ def validate_configuration(path, structure_only=False, probe=False):
     _, nodes = inspect_configuration(settings, structure_only)
     if probe:
         with AgentAPI(policy=settings.policy.agents) as api:
-            drivers = DriverRegistry([AmneziaAgentDriver(api)])
+            drivers = configured_drivers(api, settings.experimental_trusttunnel)
             for record in nodes:
                 node = record.node(read_secret(record.api_key_file).decode())
                 drivers.for_node(node).verify(node)
@@ -71,6 +87,7 @@ def agent_service():
         list(registry.nodes().values()),
         store,
         policy=settings.policy,
+        experimental_trusttunnel=settings.experimental_trusttunnel,
         telemetry=Observability(event_tail=EventTail(settings.state_directory)),
     )
     service.registry = registry

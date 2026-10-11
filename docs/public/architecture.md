@@ -17,7 +17,8 @@
   `repository_ports.py` — узкие интерфейсы журналов и хранилища секретов.
 - `interfaces/http/` проверяет служебную авторизацию и преобразует вход/выход v1/v2.
 - `interfaces/cli/` разбирает команды и приватные файлы оператора.
-- `infrastructure/drivers/` содержит Amnezia-agent HTTP adapter и протокольный драйвер.
+- `infrastructure/drivers/` содержит общий NodeHTTP, рабочий драйвер Amnezia-agent
+  и экспериментальный адаптер TrustTunnel, включаемый только явным experimental_trusttunnel.
 - `infrastructure/sqlite/` владеет журналом, транзакциями, миграциями и блокировками.
 - `config/` задаёт чистые модели настроек и политики. Загрузка файлов, секретов
   и сохранённого реестра находится в `infrastructure/settings.py`; сборка — в bootstrap.

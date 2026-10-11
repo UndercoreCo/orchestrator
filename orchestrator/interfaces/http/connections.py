@@ -55,6 +55,11 @@ def mount(app, gateway):
         result = await run_in_threadpool(service.create, value)
         return result.model_dump()
 
+    @app.post("/internal/v2/connections/lookup")
+    async def lookup(request: Request):
+        value = await decode(request, DeviceOperation)
+        return await run_in_threadpool(service.lookup, value.device_id)
+
     @app.get("/internal/v2/connections/{connection_id}")
     async def get(connection_id: str, device_id: str):
         result = await run_in_threadpool(service.get, connection_id, device_id)

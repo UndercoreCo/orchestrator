@@ -8,6 +8,7 @@ from orchestrator.domain.inventory import NodeSettings
 
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, hide_input_in_errors=True)
+    experimental_trusttunnel: bool = False
     schema_version: int = Field(default=1, ge=1, le=1)
     state_directory: str
     admin_token_file: str | None = None

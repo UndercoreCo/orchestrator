@@ -32,6 +32,9 @@ def document():
         )
         schemas.update(schema.pop("$defs", {}))
         schemas[name] = schema
+    schemas["ConnectionList"] = object_schema(
+        {"connections": {"type": "array", "items": ref("Connection")}}
+    )
     schemas["Error"] = object_schema({"detail": {"type": "string"}})
     schemas["Health"] = object_schema(
         {
@@ -157,6 +160,7 @@ def document():
         "DeviceRequest",
         "Repeat the identical request with the same device_id after a lost response.",
     )
+    operation(PREFIX + "/lookup", "post", "lookup_connections", "ConnectionList", "DeviceOperation")
     operation(PREFIX + "/{connection_id}", "get", "get_connection", "Connection")
     for action, request, response, description in (
         (

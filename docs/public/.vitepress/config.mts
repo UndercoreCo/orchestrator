@@ -26,6 +26,7 @@ export default defineConfig({
         { text: 'Ошибки и повторы', link: '/errors' },
         { text: 'Конфигурация', link: '/configuration' },
         { text: 'Контракт VPN-узла', link: '/node-agent' },
+        { text: 'TrustTunnel: эксперимент', link: '/trusttunnel' },
         { text: 'Эксплуатация', link: '/operations' },
         { text: 'Панель оркестратора', link: '/panel' },
         { text: 'Диагностика и метрики', link: '/observability' },

@@ -175,3 +175,13 @@ TrustTunnel также не рекламируется. Добавление п�
 Локальная перегрузка возвращает `503 connection_busy`; общий бюджет операции —
 `503 node_unavailable`. Это не доказательство отказа VPN-узла.
 [Лимиты и правила повторов](runtime-limits.md).
+
+
+### Lookup by canonical device identity
+
+`POST /internal/v2/connections/lookup` accepts `{"device_id":"device-example"}`
+and returns `{"connections":[Connection]}`. It requires the same backend token,
+returns metadata only, and never provisions, renews or exports credentials.
+An unknown device returns an empty list. Upstream uncertainty is an error,
+not evidence that the assignment is absent. This endpoint also supports the
+experimental TrustTunnel adapter without routing it through AWG v1 endpoints.
