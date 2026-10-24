@@ -86,6 +86,7 @@ def document():
                 "items": object_schema(
                     {
                         "id": {"type": "string"},
+                        "protocol": {"type": "string"},
                         "region": {"type": "string"},
                         "mode": {"enum": ["active", "draining", "disabled"]},
                         "assigned": {"type": "integer"},

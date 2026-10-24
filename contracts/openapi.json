@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Undercore Orchestrator — backend API",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
@@ -2487,6 +2487,9 @@
                 "id": {
                   "type": "string"
                 },
+                "protocol": {
+                  "type": "string"
+                },
                 "region": {
                   "type": "string"
                 },
@@ -2527,6 +2530,7 @@
               },
               "required": [
                 "id",
+                "protocol",
                 "region",
                 "mode",
                 "assigned",

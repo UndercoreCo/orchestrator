@@ -27,7 +27,7 @@ HTTPS и ограничение источников; локально серв�
 |---|---|
 | `GET /v1/health` | Состояние процесса и версия релиза; не проверка всех узлов |
 | `GET /internal/v1/metrics` | Метрики Prometheus и очередь из локального журнала, без запросов к агентам |
-| `GET /internal/v1/nodes` | Узлы, режимы, число назначений; не актуальный speed test |
+| `GET /internal/v1/nodes` | Узлы, протоколы (`protocol`), режимы, число назначений; не актуальный speed test |
 | `POST /internal/v2/connections` | Создать или получить назначение: `DeviceRequest` |
 | `GET /internal/v2/connections/{id}?device_id=…` | Состояние принадлежащего устройству подключения |
 | `POST /internal/v2/connections/{id}/export` | Файл или готовый QR: `ExportRequest` |
@@ -190,3 +190,7 @@ experimental TrustTunnel adapter without routing it through AWG v1 endpoints.
 
 `POST /internal/v2/usage` передаёт исходные счётчики без агрегации.
 [Контракт, границы и ограничения](traffic.md).
+
+Обзор узлов содержит `protocol` из реестра каждого узла. Это добавочное поле ответа;
+потребители прежних выпусков должны допускать его отсутствие и не определять протокол
+по имени узла. API не возвращает адреса управления и ключи.
