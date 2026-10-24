@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Undercore Orchestrator — backend API",
-    "version": "0.4.2",
+    "version": "0.5.0",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
