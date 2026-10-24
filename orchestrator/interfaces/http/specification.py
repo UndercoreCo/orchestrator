@@ -32,6 +32,20 @@ def document():
         )
         schemas.update(schema.pop("$defs", {}))
         schemas[name] = schema
+    from orchestrator.domain.usage import UsageRequest, UsageSample, UsageResponse
+
+    for model in (UsageRequest, UsageSample, UsageResponse):
+        schema = model.model_json_schema(ref_template="#/components/schemas/{model}")
+        schemas.update(schema.pop("$defs", {}))
+        schemas[model.__name__] = schema
+    schemas["UsageBatch"] = {
+        "type": "object",
+        "required": ["schema_version", "results"],
+        "properties": {
+            "schema_version": {"const": 1},
+            "results": {"type": "array", "maxItems": 20, "items": {"type": "object"}},
+        },
+    }
     schemas["ConnectionList"] = object_schema(
         {"connections": {"type": "array", "items": ref("Connection")}}
     )
@@ -141,6 +155,14 @@ def document():
             }
         paths.setdefault(path, {})[method] = value
 
+    operation(
+        "/internal/v2/usage",
+        "post",
+        "read_usage",
+        "UsageResponse",
+        "UsageRequest",
+        "Raw measurements; no aggregation or lifecycle mutation.",
+    )
     operation(
         "/v1/health", "get", "health", "Health", description="Process health only; authenticated."
     )

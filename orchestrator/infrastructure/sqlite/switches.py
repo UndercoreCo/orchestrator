@@ -74,6 +74,11 @@ class SwitchRepository:
 
     def complete(self, row: Assignment, operation: SwitchOperation, remote_id: str) -> None:
         with self.store.db() as db:
+            # Retain routing identity for readback of final node measurements. No counters here.
+            db.execute(
+                "INSERT OR IGNORE INTO retired_bindings (node_id,server_id,remote_id,binding_key,cleaned) VALUES (?,?,?,?,1)",
+                (row["node_id"], row["server_id"], row["remote_id"], row["binding_key"]),
+            )
             db.execute(
                 "UPDATE assignments SET node_id=?, server_id=?, remote_id=?, binding_key=?, last_operation='switch', last_outcome='ok', checked_at=? WHERE client_id=?",
                 (

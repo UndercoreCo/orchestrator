@@ -65,6 +65,14 @@ def mount(app, gateway):
         result = await run_in_threadpool(service.get, connection_id, device_id)
         return result.model_dump()
 
+    @app.post("/internal/v2/usage")
+    async def usage(request: Request):
+        from orchestrator.application.usage import Usage
+        from orchestrator.domain.usage import UsageRequest
+
+        value = await decode(request, UsageRequest)
+        return await run_in_threadpool(Usage(gateway).batch, value)
+
     @app.post("/internal/v2/connections/{connection_id}/configuration")
     async def configuration(connection_id: str, request: Request):
         value = await decode(request, ConfigurationRequest)

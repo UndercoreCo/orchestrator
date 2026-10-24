@@ -25,6 +25,31 @@ class AmneziaAgentDriver:
     def __init__(self, api: AgentAPI) -> None:
         self.api = api
 
+    def usage(self, node: Node, remote_id: str, binding_key: str) -> list[dict]:
+        from orchestrator.domain.usage import UsageSample
+
+        try:
+            value = self.api.request(
+                node, "GET", "/v1/clients/" + remote_id + "/usage", snapshot=True
+            )
+        except OrchestratorError as error:
+            if error.status in (404, 405, 422):
+                raise OrchestratorError("usage_unsupported", 422) from None
+            raise
+        self.api.validate_identity(node, value)
+        if (
+            value.get("schema_version") != 1
+            or value.get("client_id") != remote_id
+            or value.get("external_id") != binding_key
+            or not isinstance(value.get("samples"), list)
+            or len(value["samples"]) > 64
+        ):
+            raise OrchestratorError("counter_invalid", 503)
+        try:
+            return [UsageSample.model_validate(sample).model_dump() for sample in value["samples"]]
+        except ValueError:
+            raise OrchestratorError("counter_invalid", 503) from None
+
     def verify(self, node: Node) -> None:
         self.api.verify(node)
 

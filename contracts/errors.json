@@ -315,5 +315,25 @@
     "http_statuses": [
       422
     ]
+  },
+  "usage_unsupported": {
+    "http_statuses": [
+      422
+    ]
+  },
+  "counter_invalid": {
+    "http_statuses": [
+      503
+    ]
+  },
+  "usage_history_limit": {
+    "http_statuses": [
+      503
+    ]
+  },
+  "allocation_not_found": {
+    "http_statuses": [
+      404
+    ]
   }
 }

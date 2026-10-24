@@ -66,6 +66,16 @@ class Assignments:
         finally:
             db.close()
 
+    def usage_bindings(self, row: Assignment) -> list[dict]:
+        with self.db() as db:
+            return [
+                dict(r)
+                for r in db.execute(
+                    "SELECT * FROM retired_bindings WHERE binding_key=? OR binding_key IN (SELECT binding_key FROM switches WHERE client_id=?) ORDER BY node_id,binding_key LIMIT 101",
+                    (row["external_id"], row["client_id"]),
+                )
+            ]
+
     def rows(self) -> list[Assignment]:
         with self.db() as db:
             return [

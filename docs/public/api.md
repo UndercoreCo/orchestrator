@@ -185,3 +185,8 @@ returns metadata only, and never provisions, renews or exports credentials.
 An unknown device returns an empty list. Upstream uncertainty is an error,
 not evidence that the assignment is absent. This endpoint also supports the
 experimental TrustTunnel adapter without routing it through AWG v1 endpoints.
+
+## Статистика трафика
+
+`POST /internal/v2/usage` передаёт исходные счётчики без агрегации.
+[Контракт, границы и ограничения](traffic.md).
