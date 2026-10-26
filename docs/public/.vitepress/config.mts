@@ -18,6 +18,7 @@ export default defineConfig({
     sidebar: [
       { text: 'Начало работы', items: [
         { text: 'Обзор', link: '/' },
+        { text: 'Матрица поддержки', link: '/support' },
         { text: 'Установка', link: '/quickstart' },
         { text: 'Интеграция backend', link: '/integration' },
       ] },
