@@ -22,23 +22,29 @@ class LeaseRepository:
             return cast(LeaseState, dict(row)) if row else None
 
     def reserve(
-        self, node_id: str, server_id: str, controller: str, sequence: int, deadline: float
+        self,
+        node_id: str,
+        server_id: str,
+        controller: str,
+        sequence: int,
+        deadline: float,
+        fence_window_seconds: int,
     ) -> None:
         with self.store.db() as db:
             db.execute(
-                "INSERT INTO control_leases (node_id,server_id,controller,sequence,valid_until) VALUES (?,?,?,?,?) ON CONFLICT(node_id) DO UPDATE SET sequence=excluded.sequence,valid_until=MAX(valid_until,excluded.valid_until)",
-                (node_id, server_id, controller, sequence, deadline),
+                "INSERT INTO control_leases (node_id,server_id,controller,sequence,valid_until,fence_window_seconds) VALUES (?,?,?,?,?,?) ON CONFLICT(node_id) DO UPDATE SET sequence=excluded.sequence,valid_until=MAX(valid_until,excluded.valid_until),fence_window_seconds=MAX(fence_window_seconds,excluded.fence_window_seconds)",
+                (node_id, server_id, controller, sequence, deadline, fence_window_seconds),
             )
 
     def verify(self, node_id: str) -> None:
         with self.store.db() as db:
             db.execute("UPDATE control_leases SET verified=1 WHERE node_id=?", (node_id,))
 
-    def fence(self, node_id: str, boot: str, deadline: float) -> None:
+    def fence(self, node_id: str, boot: str, deadline: float, window_seconds: int) -> None:
         with self.store.db() as db:
             db.execute(
-                "UPDATE control_leases SET fenced=1,fence_boot=?,fence_after=? WHERE node_id=?",
-                (boot, deadline, node_id),
+                "UPDATE control_leases SET fenced=1,fence_boot=?,fence_after=?,fence_window_seconds=MAX(fence_window_seconds,?) WHERE node_id=?",
+                (boot, deadline, window_seconds, node_id),
             )
 
     def remember(self, row: Assignment, data: Mapping[str, object]) -> None:

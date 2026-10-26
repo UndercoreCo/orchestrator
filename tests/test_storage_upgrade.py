@@ -127,6 +127,74 @@ def test_concurrent_initialization_commits_one_version(tmp_path):
     assert logical_snapshot(stores[0].path)[0] == migrations.CURRENT_SCHEMA
 
 
+@pytest.mark.parametrize("version", [0, 1])
+def test_legacy_lease_migration_uses_maximum_old_policy_and_preserves_access(pair, version):
+    gateway, _, _, _, ident, _ = pair
+    store = gateway.store
+    row = store.get(client_id=ident)
+    store.leases.deny(row, True)
+    store.leases.retire(row)
+    store.leases.reserve("a", "a-identity", "controller", 9, 9999999999, 245)
+    store.leases.verify("a")
+    store.leases.fence("a", "old-boot", 12345, 245)
+    with store.db() as db:
+        db.execute("ALTER TABLE control_leases DROP COLUMN fence_window_seconds")
+        db.execute(f"PRAGMA user_version={version}")
+    upgraded = Assignments(store.path.parent)
+    state = upgraded.leases.state("a")
+    assert state["fence_window_seconds"] == 900
+    assert state["fenced"] == state["verified"] == 1
+    assert state["fence_boot"] == ""  # First fence/expired starts a full new wait.
+    assert state["sequence"] == 9
+    assert state["valid_until"] == 9999999999
+    assert upgraded.get(client_id=ident) == row
+    assert upgraded.leases.cached(ident)["denied"] == 1
+    assert upgraded.leases.restore_snapshot("a")[1][0]["remote_id"] == row["remote_id"]
+    before = logical_snapshot(store.path)
+    Assignments(store.path.parent)
+    assert logical_snapshot(store.path) == before
+
+
+def test_schema_one_migration_failure_is_atomic(tmp_path, monkeypatch):
+    store = Assignments(tmp_path / "state")
+    store.leases.reserve("a", "identity", "controller", 1, 9999999999, 245)
+    store.leases.fence("a", "boot", 12345, 245)
+    with store.db() as db:
+        db.execute("ALTER TABLE control_leases DROP COLUMN fence_window_seconds")
+        db.execute("PRAGMA user_version=1")
+    before = logical_snapshot(store.path)
+    original = migrations._durable_fence_window
+
+    def fail(db):
+        original(db)
+        if db.execute("PRAGMA database_list").fetchone()[2]:
+            raise RuntimeError("synthetic interruption after lease migration")
+
+    monkeypatch.setattr(migrations, "_durable_fence_window", fail)
+    with pytest.raises(RuntimeError):
+        Assignments(store.path.parent)
+    assert logical_snapshot(store.path) == before
+    monkeypatch.setattr(migrations, "_durable_fence_window", original)
+    assert Assignments(store.path.parent).leases.state("a")["fence_window_seconds"] == 900
+
+
+@pytest.mark.parametrize("damage", ["missing_table", "wrong_index"])
+def test_schema_one_is_validated_before_migration(tmp_path, damage):
+    store = Assignments(tmp_path / "state")
+    with store.db() as db:
+        db.execute("ALTER TABLE control_leases DROP COLUMN fence_window_seconds")
+        db.execute("PRAGMA user_version=1")
+        if damage == "missing_table":
+            db.execute("DROP TABLE access_cache")
+        else:
+            db.execute("DROP INDEX assignments_device_protocol")
+            db.execute("CREATE INDEX assignments_device_protocol ON assignments(protocol)")
+    before = logical_snapshot(store.path)
+    with pytest.raises(ValueError, match="journal_schema_invalid"):
+        Assignments(store.path.parent)
+    assert logical_snapshot(store.path) == before
+
+
 def make_settings(gateway, tmp_path):
     key = tmp_path / "node.token"
     key.write_text("n" * 40)
@@ -170,7 +238,7 @@ def test_backup_restore_preserves_pending_switch_denial_and_credentials(pair, tm
     pending = gateway.store.switches.pending(ident)
     # Persist an independent denied record and fencing metadata, not just a happy-path row.
     gateway.store.leases.deny(row, True)
-    gateway.store.leases.reserve("a", "a-identity", "controller", 9, 9999999999)
+    gateway.store.leases.reserve("a", "a-identity", "controller", 9, 9999999999, 700)
     settings = make_settings(gateway, tmp_path)
     saved = tmp_path / "backup"
     backup(settings, saved)
@@ -184,6 +252,7 @@ def test_backup_restore_preserves_pending_switch_denial_and_credentials(pair, tm
     assert store.switches.pending(ident) == pending
     assert store.leases.cached(ident)["denied"] == 1
     assert store.leases.state("a")["sequence"] == 9
+    assert store.leases.state("a")["fence_window_seconds"] == 700
     data = json.loads(Path(result["settings"]).read_text())
     assert Path(data["backend_token_file"]).read_text() == "b" * 40
     assert all(Path(n["api_key_file"]).parent == restored for n in data["nodes"])
@@ -220,9 +289,17 @@ def test_bad_backup_never_creates_output(pair, tmp_path, damage):
 
 def test_release_storage_contract_and_rollback_bounds(tmp_path):
     store = Assignments(tmp_path / "state")
-    current = {"storage": {"min_read": 0, "max_read": 1, "write": 1}}
-    update.check_storage(store.path, current, {})  # additive schema supported by legacy code
-    future = {"storage": {"min_read": 0, "max_read": 2, "write": 2}}
+    current = {"storage": {"min_read": 0, "max_read": 2, "write": 2}}
+    update.check_storage(store.path, current, current)
+    old = {"storage": {"min_read": 0, "max_read": 1, "write": 1}}
+    # Unlike the first additive migration, old releases cannot safely ignore
+    # durable fencing bounds. Neither implicit nor explicit rollback is allowed.
+    for previous in ({}, old):
+        with pytest.raises(ValueError, match="rollback_schema_incompatible"):
+            update.check_storage(store.path, current, previous)
+    with pytest.raises(ValueError, match="journal_schema_unsupported"):
+        update.check_storage(store.path, old, current)
+    future = {"storage": {"min_read": 0, "max_read": 3, "write": 3}}
     with pytest.raises(ValueError, match="rollback_schema_incompatible"):
         update.check_storage(store.path, future, current)
     with store.db() as db:

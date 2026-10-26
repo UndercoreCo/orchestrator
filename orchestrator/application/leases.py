@@ -77,7 +77,15 @@ class NodeLeases:
         deadline = time.time() + self.gateway.policy.leases.duration_seconds
         # Caller holds the node lock across reservation and HTTP. Persist the
         # upper bound BEFORE sending; an uncertain response must not shorten it.
-        self.store.leases.reserve(node.id, node.server_id, controller, sequence, deadline)
+        policy = self.gateway.policy.leases
+        self.store.leases.reserve(
+            node.id,
+            node.server_id,
+            controller,
+            sequence,
+            deadline,
+            policy.max_node_lease_seconds + policy.fence_grace_seconds,
+        )
         transport.renew(node, LeaseGrant(controller, sequence, timestamp(deadline)))
         self.store.leases.verify(node.id)
 
@@ -87,12 +95,16 @@ class NodeLeases:
             if not node.lease_enabled or not state or not state["verified"]:
                 raise OrchestratorError("revoke_unconfirmed", 503)
             if not state["fenced"] or state["fence_boot"] != self.gateway.boot_id:
+                window = max(
+                    state["fence_window_seconds"],
+                    self.gateway.policy.leases.max_node_lease_seconds
+                    + self.gateway.policy.leases.fence_grace_seconds,
+                )
                 self.store.leases.fence(
                     node.id,
                     self.gateway.boot_id,
-                    time.monotonic()
-                    + self.gateway.policy.leases.max_node_lease_seconds
-                    + self.gateway.policy.leases.fence_grace_seconds,
+                    time.monotonic() + window,
+                    window,
                 )
 
     def expired(self, node):

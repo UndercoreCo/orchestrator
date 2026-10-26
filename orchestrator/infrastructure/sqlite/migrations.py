@@ -2,8 +2,11 @@
 
 import sqlite3
 
-CURRENT_SCHEMA = 1
+CURRENT_SCHEMA = 2
 MIN_SCHEMA = 0
+# Schema 1 did not record its policy. These are the largest bounds accepted by
+# that release, not the defaults. Never infer an old grant's bound from new config.
+LEGACY_FENCE_WINDOW_SECONDS = 300 + 600
 
 
 def schema_version(db):
@@ -25,14 +28,16 @@ def _layout(db):
     }
 
 
-def _expected():
+def _expected(version=CURRENT_SCHEMA):
     with sqlite3.connect(":memory:") as db:
         _baseline(db)
+        if version >= 2:
+            _durable_fence_window(db)
         return _layout(db)
 
 
-def validate_schema(db):
-    if schema_version(db) != CURRENT_SCHEMA or _layout(db) != _expected():
+def validate_schema(db, version=CURRENT_SCHEMA):
+    if schema_version(db) != version or _layout(db) != _expected(version):
         raise ValueError("journal_schema_invalid")
     for index in ("one_pending_switch", "assignments_device_protocol"):
         row = db.execute(
@@ -62,6 +67,12 @@ def migrate(store):
                 ):
                     raise ValueError("journal_legacy_schema_invalid")
             _baseline(db)
+            _durable_fence_window(db)
+            db.execute(f"PRAGMA user_version={CURRENT_SCHEMA}")
+        elif version == 1:
+            # Validate before ALTER; a damaged versioned database is not repaired.
+            validate_schema(db, version=1)
+            _durable_fence_window(db)
             db.execute(f"PRAGMA user_version={CURRENT_SCHEMA}")
         validate_schema(db)
 
@@ -69,6 +80,20 @@ def migrate(store):
 def initialize_registry(store):
     # Kept as an internal compatibility entry point; migration creates all tables.
     migrate(store)
+
+
+def _durable_fence_window(db):
+    columns = {row[1] for row in db.execute("PRAGMA table_info(control_leases)")}
+    if "fence_window_seconds" in columns:
+        return
+    db.execute(
+        "ALTER TABLE control_leases ADD COLUMN fence_window_seconds "
+        f"INTEGER NOT NULL DEFAULT {LEGACY_FENCE_WINDOW_SECONDS} "
+        "CHECK(fence_window_seconds >= 245)"
+    )
+    # Start a conservative monotonic wait on first use of a migrated fence.
+    # Do not trust an old deadline computed with an unrecorded policy.
+    db.execute("UPDATE control_leases SET fence_boot='' WHERE fenced=1")
 
 
 def _baseline(db):

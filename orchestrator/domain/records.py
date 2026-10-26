@@ -76,6 +76,7 @@ class LeaseState(TypedDict):
     fenced: int
     fence_boot: str
     fence_after: float
+    fence_window_seconds: int
 
 
 class CachedAccess(TypedDict):
