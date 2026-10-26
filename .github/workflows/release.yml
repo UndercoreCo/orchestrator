@@ -4,6 +4,9 @@ on:
     tags: ['v*']
 permissions:
   contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -37,6 +40,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
@@ -54,6 +58,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           test "$TAG" = "v$(cat VERSION)"
+          git merge-base --is-ancestor "${{ github.sha }}" origin/main
           python scripts/build_release.py --ref "${{ github.sha }}"
       - name: Attest exact release archive
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
@@ -63,4 +68,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" dist/* --title "Undercore Orchestrator $TAG" --notes "Independent orchestrator release. See docs/public/operations.md for the controlled update command and rollback policy."
+          RELEASE_COMMIT: ${{ github.sha }}
+          RELEASE_REPO: ${{ github.repository }}
+        run: python scripts/publish_release.py --repo "$RELEASE_REPO" --tag "$TAG" --commit "$RELEASE_COMMIT"

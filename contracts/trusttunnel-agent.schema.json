@@ -1,0 +1,459 @@
+{
+  "Health": {
+    "$defs": {
+      "Guarantees": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotent_create": {
+            "title": "Idempotent Create",
+            "type": "boolean"
+          },
+          "enforces_expiry": {
+            "title": "Enforces Expiry",
+            "type": "boolean"
+          },
+          "confirmed_revoke": {
+            "title": "Confirmed Revoke",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "idempotent_create",
+          "enforces_expiry",
+          "confirmed_revoke"
+        ],
+        "title": "Guarantees",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "schema_version": {
+        "const": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      },
+      "server_id": {
+        "pattern": "^[A-Za-z0-9_-]{1,100}$",
+        "title": "Server Id",
+        "type": "string"
+      },
+      "protocol": {
+        "const": "trusttunnel",
+        "title": "Protocol",
+        "type": "string"
+      },
+      "status": {
+        "const": "ok",
+        "title": "Status",
+        "type": "string"
+      },
+      "capabilities": {
+        "$ref": "#/$defs/Guarantees"
+      }
+    },
+    "required": [
+      "schema_version",
+      "server_id",
+      "protocol",
+      "status",
+      "capabilities"
+    ],
+    "title": "Health",
+    "type": "object"
+  },
+  "Create": {
+    "additionalProperties": false,
+    "properties": {
+      "external_id": {
+        "pattern": "^[A-Za-z0-9_-]{1,100}$",
+        "title": "External Id",
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 80,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "title": "Name",
+        "type": "string"
+      },
+      "expires_at": {
+        "title": "Expires At",
+        "type": "string"
+      }
+    },
+    "required": [
+      "external_id",
+      "name",
+      "expires_at"
+    ],
+    "title": "Create",
+    "type": "object"
+  },
+  "Renewal": {
+    "additionalProperties": false,
+    "properties": {
+      "expires_at": {
+        "title": "Expires At",
+        "type": "string"
+      },
+      "idempotency_key": {
+        "pattern": "^[A-Za-z0-9_:.+-]{1,160}$",
+        "title": "Idempotency Key",
+        "type": "string"
+      }
+    },
+    "required": [
+      "expires_at",
+      "idempotency_key"
+    ],
+    "title": "Renewal",
+    "type": "object"
+  },
+  "Replacement": {
+    "additionalProperties": false,
+    "properties": {
+      "expires_at": {
+        "title": "Expires At",
+        "type": "string"
+      },
+      "idempotency_key": {
+        "pattern": "^[A-Za-z0-9_:.+-]{1,160}$",
+        "title": "Idempotency Key",
+        "type": "string"
+      },
+      "expected_external_id": {
+        "pattern": "^[A-Za-z0-9_-]{1,100}$",
+        "title": "Expected External Id",
+        "type": "string"
+      },
+      "allow_create": {
+        "default": true,
+        "title": "Allow Create",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "expires_at",
+      "idempotency_key",
+      "expected_external_id"
+    ],
+    "title": "Replacement",
+    "type": "object"
+  },
+  "ClientSnapshot": {
+    "$defs": {
+      "Client": {
+        "additionalProperties": false,
+        "properties": {
+          "client_id": {
+            "pattern": "^ttapi_[a-f0-9]{32}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "external_id": {
+            "pattern": "^[A-Za-z0-9_-]{1,100}$",
+            "title": "External Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+            "title": "Name",
+            "type": "string"
+          },
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "disabled",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id",
+          "external_id",
+          "name",
+          "expires_at",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Client",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "schema_version": {
+        "const": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      },
+      "server_id": {
+        "pattern": "^[A-Za-z0-9_-]{1,100}$",
+        "title": "Server Id",
+        "type": "string"
+      },
+      "protocol": {
+        "const": "trusttunnel",
+        "title": "Protocol",
+        "type": "string"
+      },
+      "status": {
+        "const": "ok",
+        "title": "Status",
+        "type": "string"
+      },
+      "applied": {
+        "title": "Applied",
+        "type": "boolean"
+      },
+      "client": {
+        "$ref": "#/$defs/Client"
+      }
+    },
+    "required": [
+      "schema_version",
+      "server_id",
+      "protocol",
+      "status",
+      "applied",
+      "client"
+    ],
+    "title": "ClientSnapshot",
+    "type": "object"
+  },
+  "ClientList": {
+    "$defs": {
+      "Client": {
+        "additionalProperties": false,
+        "properties": {
+          "client_id": {
+            "pattern": "^ttapi_[a-f0-9]{32}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "external_id": {
+            "pattern": "^[A-Za-z0-9_-]{1,100}$",
+            "title": "External Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+            "title": "Name",
+            "type": "string"
+          },
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "disabled",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id",
+          "external_id",
+          "name",
+          "expires_at",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Client",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "schema_version": {
+        "const": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      },
+      "server_id": {
+        "pattern": "^[A-Za-z0-9_-]{1,100}$",
+        "title": "Server Id",
+        "type": "string"
+      },
+      "protocol": {
+        "const": "trusttunnel",
+        "title": "Protocol",
+        "type": "string"
+      },
+      "status": {
+        "const": "ok",
+        "title": "Status",
+        "type": "string"
+      },
+      "clients": {
+        "items": {
+          "$ref": "#/$defs/Client"
+        },
+        "maxItems": 10000,
+        "title": "Clients",
+        "type": "array"
+      }
+    },
+    "required": [
+      "schema_version",
+      "server_id",
+      "protocol",
+      "status",
+      "clients"
+    ],
+    "title": "ClientList",
+    "type": "object"
+  },
+  "ConnectionSnapshot": {
+    "$defs": {
+      "Client": {
+        "additionalProperties": false,
+        "properties": {
+          "client_id": {
+            "pattern": "^ttapi_[a-f0-9]{32}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "external_id": {
+            "pattern": "^[A-Za-z0-9_-]{1,100}$",
+            "title": "External Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+            "title": "Name",
+            "type": "string"
+          },
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "disabled",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id",
+          "external_id",
+          "name",
+          "expires_at",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Client",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "schema_version": {
+        "const": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      },
+      "server_id": {
+        "pattern": "^[A-Za-z0-9_-]{1,100}$",
+        "title": "Server Id",
+        "type": "string"
+      },
+      "protocol": {
+        "const": "trusttunnel",
+        "title": "Protocol",
+        "type": "string"
+      },
+      "status": {
+        "const": "ok",
+        "title": "Status",
+        "type": "string"
+      },
+      "applied": {
+        "title": "Applied",
+        "type": "boolean"
+      },
+      "client": {
+        "$ref": "#/$defs/Client"
+      },
+      "endpoint_export": {
+        "maxLength": 65536,
+        "minLength": 1,
+        "title": "Endpoint Export",
+        "type": "string"
+      },
+      "ipv6_available": {
+        "title": "Ipv6 Available",
+        "type": "boolean"
+      },
+      "transport": {
+        "enum": [
+          "http2",
+          "http3"
+        ],
+        "title": "Transport",
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "server_id",
+      "protocol",
+      "status",
+      "applied",
+      "client",
+      "endpoint_export",
+      "ipv6_available",
+      "transport"
+    ],
+    "title": "ConnectionSnapshot",
+    "type": "object"
+  }
+}

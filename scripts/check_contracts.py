@@ -8,6 +8,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root))
 from orchestrator.domain.contracts import schemas  # noqa: E402
+from orchestrator.infrastructure.drivers.trusttunnel_contract import schemas as trusttunnel_schemas  # noqa: E402
 
 assert (
     json.loads((root / "contracts/orchestrator-connections.schema.json").read_text()) == schemas()
@@ -51,3 +52,11 @@ assert json.loads((root / "contracts/storage.json").read_text()) == {
     "write": CURRENT_SCHEMA,
 }, "Storage release contract is stale"
 print("Storage schema contract verified")
+
+# Draft node-agent wire contract is separate from the stable backend HTTP contract.
+
+assert (
+    json.loads((root / "contracts/trusttunnel-agent.schema.json").read_text())
+    == trusttunnel_schemas()
+), "TrustTunnel node-agent schema is stale"
+print("Experimental TrustTunnel node-agent contract verified")

@@ -10,6 +10,7 @@ from orchestrator.application.repository_ports import (
 )
 from orchestrator.infrastructure.sqlite.assignments import Assignments
 from orchestrator.infrastructure.drivers.amneziawg import AmneziaAgentDriver
+from orchestrator.infrastructure.drivers.trusttunnel import TrustTunnelAgentDriver
 from orchestrator.infrastructure.drivers.amnezia_leases import AmneziaLeaseTransport
 from orchestrator.infrastructure.credentials import CredentialFiles
 from orchestrator.infrastructure.sqlite.panel import PanelJournal
@@ -29,3 +30,7 @@ def check_implementations(
     Journal, NodeDriver, LeaseTransport, Credentials, PanelReader, OperatorJournal, PolicyEditor
 ]:
     return store, driver, leases, files, panel, audit, policies
+
+
+def check_trusttunnel_driver(driver: TrustTunnelAgentDriver) -> NodeDriver:
+    return driver

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Undercore Orchestrator — backend API",
-    "version": "0.4.0",
+    "version": "0.5.1",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
@@ -21,6 +21,88 @@
     }
   ],
   "paths": {
+    "/internal/v2/usage": {
+      "post": {
+        "operationId": "read_usage",
+        "summary": "Read usage",
+        "description": "Raw measurements; no aggregation or lifecycle mutation.",
+        "responses": {
+          "200": {
+            "description": "Successful operation. Tunnel connectivity is not implied.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store"
+              },
+              "X-Request-ID": {
+                "description": "Server-generated correlation ID; caller input is not trusted",
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{32}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application error: detail is a machine code (contracts/errors.json). 401 authorization; 404 ownership/not found; 409 conflict; 410 unavailable; 413/422 invalid input; 429 cooldown; 503 unavailable or pending lease. Framework query-validation errors can instead contain a detail array. Proxies may return non-JSON errors. Repeat only the same operation identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "detail": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        }
+                      },
+                      "required": [
+                        "detail"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated correlation ID; caller input is not trusted",
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{32}$"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsageRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/health": {
       "get": {
         "operationId": "health",
@@ -313,6 +395,88 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DeviceRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v2/connections/lookup": {
+      "post": {
+        "operationId": "lookup_connections",
+        "summary": "Lookup connections",
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "Successful operation. Tunnel connectivity is not implied.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store"
+              },
+              "X-Request-ID": {
+                "description": "Server-generated correlation ID; caller input is not trusted",
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{32}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application error: detail is a machine code (contracts/errors.json). 401 authorization; 404 ownership/not found; 409 conflict; 410 unavailable; 413/422 invalid input; 429 cooldown; 503 unavailable or pending lease. Framework query-validation errors can instead contain a detail array. Proxies may return non-JSON errors. Repeat only the same operation identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "detail": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        }
+                      },
+                      "required": [
+                        "detail"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated correlation ID; caller input is not trusted",
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{32}$"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceOperation"
               }
             }
           }
@@ -1787,6 +1951,426 @@
         "title": "ConnectionConfiguration",
         "type": "object"
       },
+      "UsageTarget": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_id": {
+            "pattern": "^wgapi_[a-f0-9]{32}$",
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "device_id": {
+            "pattern": "^[A-Za-z0-9_-]{1,100}$",
+            "title": "Device Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection_id",
+          "device_id"
+        ],
+        "title": "UsageTarget",
+        "type": "object"
+      },
+      "UsageRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "schema_version": {
+            "const": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/UsageTarget"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Connections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "connections"
+        ],
+        "title": "UsageRequest",
+        "type": "object"
+      },
+      "UsageSample": {
+        "additionalProperties": false,
+        "properties": {
+          "counter_epoch": {
+            "pattern": "^[a-f0-9]{32}$",
+            "title": "Counter Epoch",
+            "type": "string"
+          },
+          "sequence": {
+            "maximum": 9223372036854775807,
+            "minimum": 1,
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "measurement_basis": {
+            "const": "awg-transfer-v1",
+            "title": "Measurement Basis",
+            "type": "string"
+          },
+          "observed_at": {
+            "title": "Observed At",
+            "type": "string"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "download_bytes": {
+            "title": "Download Bytes",
+            "type": "string"
+          },
+          "upload_bytes": {
+            "title": "Upload Bytes",
+            "type": "string"
+          },
+          "baseline_download_bytes": {
+            "title": "Baseline Download Bytes",
+            "type": "string"
+          },
+          "baseline_upload_bytes": {
+            "title": "Baseline Upload Bytes",
+            "type": "string"
+          },
+          "is_final": {
+            "title": "Is Final",
+            "type": "boolean"
+          },
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "counter_epoch",
+          "sequence",
+          "measurement_basis",
+          "observed_at",
+          "started_at",
+          "download_bytes",
+          "upload_bytes",
+          "baseline_download_bytes",
+          "baseline_upload_bytes",
+          "is_final",
+          "complete"
+        ],
+        "title": "UsageSample",
+        "type": "object"
+      },
+      "AllocationError": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_id": {
+            "pattern": "^wgapi_[a-f0-9]{32}$",
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "device_id": {
+            "pattern": "^[A-Za-z0-9_-]{1,100}$",
+            "title": "Device Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "error",
+            "title": "Status",
+            "type": "string"
+          },
+          "error": {
+            "enum": [
+              "usage_unsupported",
+              "counter_invalid",
+              "usage_history_limit",
+              "allocation_not_found",
+              "not_found",
+              "node_unavailable"
+            ],
+            "title": "Error",
+            "type": "string"
+          },
+          "retryable": {
+            "title": "Retryable",
+            "type": "boolean"
+          },
+          "node_id": {
+            "pattern": "^[A-Za-z0-9_-]{1,100}$",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "allocation_id": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Allocation Id",
+            "type": "string"
+          },
+          "protocol": {
+            "enum": [
+              "amneziawg",
+              "trusttunnel"
+            ],
+            "title": "Protocol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection_id",
+          "device_id",
+          "status",
+          "error",
+          "retryable",
+          "node_id",
+          "allocation_id",
+          "protocol"
+        ],
+        "title": "AllocationError",
+        "type": "object"
+      },
+      "AllocationUsage": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_id": {
+            "pattern": "^wgapi_[a-f0-9]{32}$",
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "device_id": {
+            "pattern": "^[A-Za-z0-9_-]{1,100}$",
+            "title": "Device Id",
+            "type": "string"
+          },
+          "node_id": {
+            "pattern": "^[A-Za-z0-9_-]{1,100}$",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "allocation_id": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Allocation Id",
+            "type": "string"
+          },
+          "protocol": {
+            "enum": [
+              "amneziawg",
+              "trusttunnel"
+            ],
+            "title": "Protocol",
+            "type": "string"
+          },
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/UsageSample"
+            },
+            "maxItems": 64,
+            "title": "Samples",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connection_id",
+          "device_id",
+          "node_id",
+          "allocation_id",
+          "protocol",
+          "status",
+          "samples"
+        ],
+        "title": "AllocationUsage",
+        "type": "object"
+      },
+      "ConnectionUsage": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_id": {
+            "pattern": "^wgapi_[a-f0-9]{32}$",
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "device_id": {
+            "pattern": "^[A-Za-z0-9_-]{1,100}$",
+            "title": "Device Id",
+            "type": "string"
+          },
+          "node_id": {
+            "pattern": "^[A-Za-z0-9_-]{1,100}$",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "allocation_id": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Allocation Id",
+            "type": "string"
+          },
+          "protocol": {
+            "enum": [
+              "amneziawg",
+              "trusttunnel"
+            ],
+            "title": "Protocol",
+            "type": "string"
+          },
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/UsageSample"
+            },
+            "maxItems": 64,
+            "title": "Samples",
+            "type": "array"
+          },
+          "previous": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AllocationUsage"
+                },
+                {
+                  "$ref": "#/components/schemas/AllocationError"
+                }
+              ]
+            },
+            "maxItems": 100,
+            "title": "Previous",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connection_id",
+          "device_id",
+          "node_id",
+          "allocation_id",
+          "protocol",
+          "status",
+          "samples",
+          "previous"
+        ],
+        "title": "ConnectionUsage",
+        "type": "object"
+      },
+      "UsageError": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_id": {
+            "pattern": "^wgapi_[a-f0-9]{32}$",
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "device_id": {
+            "pattern": "^[A-Za-z0-9_-]{1,100}$",
+            "title": "Device Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "error",
+            "title": "Status",
+            "type": "string"
+          },
+          "error": {
+            "enum": [
+              "usage_unsupported",
+              "counter_invalid",
+              "usage_history_limit",
+              "allocation_not_found",
+              "not_found",
+              "node_unavailable"
+            ],
+            "title": "Error",
+            "type": "string"
+          },
+          "retryable": {
+            "title": "Retryable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "connection_id",
+          "device_id",
+          "status",
+          "error",
+          "retryable"
+        ],
+        "title": "UsageError",
+        "type": "object"
+      },
+      "UsageResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "schema_version": {
+            "const": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "results": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ConnectionUsage"
+                },
+                {
+                  "$ref": "#/components/schemas/UsageError"
+                }
+              ]
+            },
+            "maxItems": 20,
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "results"
+        ],
+        "title": "UsageResponse",
+        "type": "object"
+      },
+      "UsageBatch": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "results"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "results": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "ConnectionList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "connections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Connection"
+            }
+          }
+        },
+        "required": [
+          "connections"
+        ]
+      },
       "Error": {
         "type": "object",
         "additionalProperties": false,
@@ -1903,6 +2487,9 @@
                 "id": {
                   "type": "string"
                 },
+                "protocol": {
+                  "type": "string"
+                },
                 "region": {
                   "type": "string"
                 },
@@ -1943,6 +2530,7 @@
               },
               "required": [
                 "id",
+                "protocol",
                 "region",
                 "mode",
                 "assigned",

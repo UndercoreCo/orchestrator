@@ -293,6 +293,7 @@ class AgentGateway:
             result.append(
                 {
                     "id": node.id,
+                    "protocol": node.protocol,
                     "region": node.region,
                     "mode": node.mode,
                     "assigned": len(assigned),

@@ -18,6 +18,10 @@ def check(root=ROOT):
     release = (root / ".github/workflows/release.yml").read_text()
     for required in (
         "needs: verify",
+        "cancel-in-progress: false",
+        "fetch-depth: 0",
+        "git merge-base --is-ancestor",
+        "scripts/publish_release.py",
         "python -m pytest",
         "scripts/check_secrets.py",
         "pip_audit -r requirements.lock",

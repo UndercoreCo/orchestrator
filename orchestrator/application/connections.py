@@ -74,6 +74,11 @@ class Connections:
         row = self.gateway.store.get(client_id=value["client_id"])
         return self.describe(row, value)
 
+    @bounded
+    def lookup(self, device_id):
+        rows = self.gateway.store.for_device(device_id)
+        return {"connections": [self.get(row["client_id"], device_id).model_dump() for row in rows]}
+
     def owned(self, connection_id, device_id):
         row = self.gateway.store.get(client_id=connection_id)
         if row is None or row["device_id"] != device_id:

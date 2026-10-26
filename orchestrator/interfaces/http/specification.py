@@ -32,6 +32,23 @@ def document():
         )
         schemas.update(schema.pop("$defs", {}))
         schemas[name] = schema
+    from orchestrator.domain.usage import UsageRequest, UsageSample, UsageResponse
+
+    for model in (UsageRequest, UsageSample, UsageResponse):
+        schema = model.model_json_schema(ref_template="#/components/schemas/{model}")
+        schemas.update(schema.pop("$defs", {}))
+        schemas[model.__name__] = schema
+    schemas["UsageBatch"] = {
+        "type": "object",
+        "required": ["schema_version", "results"],
+        "properties": {
+            "schema_version": {"const": 1},
+            "results": {"type": "array", "maxItems": 20, "items": {"type": "object"}},
+        },
+    }
+    schemas["ConnectionList"] = object_schema(
+        {"connections": {"type": "array", "items": ref("Connection")}}
+    )
     schemas["Error"] = object_schema({"detail": {"type": "string"}})
     schemas["Health"] = object_schema(
         {
@@ -69,6 +86,7 @@ def document():
                 "items": object_schema(
                     {
                         "id": {"type": "string"},
+                        "protocol": {"type": "string"},
                         "region": {"type": "string"},
                         "mode": {"enum": ["active", "draining", "disabled"]},
                         "assigned": {"type": "integer"},
@@ -139,6 +157,14 @@ def document():
         paths.setdefault(path, {})[method] = value
 
     operation(
+        "/internal/v2/usage",
+        "post",
+        "read_usage",
+        "UsageResponse",
+        "UsageRequest",
+        "Raw measurements; no aggregation or lifecycle mutation.",
+    )
+    operation(
         "/v1/health", "get", "health", "Health", description="Process health only; authenticated."
     )
     operation(
@@ -157,6 +183,7 @@ def document():
         "DeviceRequest",
         "Repeat the identical request with the same device_id after a lost response.",
     )
+    operation(PREFIX + "/lookup", "post", "lookup_connections", "ConnectionList", "DeviceOperation")
     operation(PREFIX + "/{connection_id}", "get", "get_connection", "Connection")
     for action, request, response, description in (
         (

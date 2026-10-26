@@ -27,7 +27,7 @@ HTTPS и ограничение источников; локально серв�
 |---|---|
 | `GET /v1/health` | Состояние процесса и версия релиза; не проверка всех узлов |
 | `GET /internal/v1/metrics` | Метрики Prometheus и очередь из локального журнала, без запросов к агентам |
-| `GET /internal/v1/nodes` | Узлы, режимы, число назначений; не актуальный speed test |
+| `GET /internal/v1/nodes` | Узлы, протоколы (`protocol`), режимы, число назначений; не актуальный speed test |
 | `POST /internal/v2/connections` | Создать или получить назначение: `DeviceRequest` |
 | `GET /internal/v2/connections/{id}?device_id=…` | Состояние принадлежащего устройству подключения |
 | `POST /internal/v2/connections/{id}/export` | Файл или готовый QR: `ExportRequest` |
@@ -159,8 +159,9 @@ AmneziaWG предоставляет `.conf`, `.vpn` (содержимое `vpn:
 
 Для WireGuard предусмотрена отдельная политика экспорта только `.conf` и QR;
 полноценного WireGuard-драйвера lifecycle пока нет, runtime его не рекламирует.
-TrustTunnel также не рекламируется. Добавление протокола требует рабочего
-драйвера и тестов lifecycle, а не только наличия форматтера.
+TrustTunnel публикует capability только при `experimental_trusttunnel: true`;
+параметры выдаются через `/configuration` как `trusttunnel-toml`. Файловые экспорты
+AWG ему не приписываются. Требуется совместимый managed-agent; см. [матрицу](support.md).
 
 Скачанный файл/QR — снимок параметров. В стороннем клиенте он не обновится сам
 при переносе подключения на другой узел: нужно повторно импортировать экспорт.
@@ -175,3 +176,22 @@ TrustTunnel также не рекламируется. Добавление п�
 Локальная перегрузка возвращает `503 connection_busy`; общий бюджет операции —
 `503 node_unavailable`. Это не доказательство отказа VPN-узла.
 [Лимиты и правила повторов](runtime-limits.md).
+
+
+### Lookup by canonical device identity
+
+`POST /internal/v2/connections/lookup` accepts `{"device_id":"device-example"}`
+and returns `{"connections":[Connection]}`. It requires the same backend token,
+returns metadata only, and never provisions, renews or exports credentials.
+An unknown device returns an empty list. Upstream uncertainty is an error,
+not evidence that the assignment is absent. This endpoint also supports the
+experimental TrustTunnel adapter without routing it through AWG v1 endpoints.
+
+## Статистика трафика
+
+`POST /internal/v2/usage` передаёт исходные счётчики без агрегации.
+[Контракт, границы и ограничения](traffic.md).
+
+Обзор узлов содержит `protocol` из реестра каждого узла. Это добавочное поле ответа;
+потребители прежних выпусков должны допускать его отсутствие и не определять протокол
+по имени узла. API не возвращает адреса управления и ключи.

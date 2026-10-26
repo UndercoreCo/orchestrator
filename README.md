@@ -4,11 +4,13 @@ A standalone VPN control service for trusted backends. It assigns devices to VPN
 nodes, returns connection parameters and exports, and coordinates recovery and
 revocation. VPN traffic goes directly from the client to the node.
 
-**Status: early release, 0.x.** The implemented driver requires the Undercore
-Amnezia-agent. An ordinary Amnezia server is not enough. The production agent is
-not yet distributed as a standalone public package; automated node installation
-is planned, not available. You can run the orchestrator and its tests without a
-node, but cannot establish a real VPN connection that way.
+**Status: early release, 0.x.** AmneziaWG has a working lifecycle driver;
+TrustTunnel has an experimental driver enabled explicitly in configuration.
+Both require compatible node agents, not an ordinary upstream VPN server.
+The node-agent runtime and automatic node installer are not yet publicly shipped.
+You can run the orchestrator and its tests without a node, but cannot establish a
+real VPN connection that way. See the [support matrix](docs/public/support.md)
+for the difference between implemented, tested and publicly installable features.
 
 ## Responsibilities
 
@@ -52,9 +54,10 @@ Production installation uses Linux/systemd and a verified release archive.
 | VPN lifecycle | AmneziaWG through a compatible Undercore agent |
 | Exports | `.conf`, Amnezia `.vpn`, PNG QR |
 | Recovery | Durable switching, retries of the same operation, confirmed revocation |
-| Management | Local CLI, validated configuration, SQLite journal |
+| Management | Local CLI, standalone optional panel, validated configuration, SQLite journal |
 | Distribution | Release archives, installer and controlled updater |
-| WireGuard / TrustTunnel | No complete runtime drivers yet |
+| TrustTunnel | Experimental lifecycle driver, opt-in; compatible managed agent required |
+| WireGuard | Export policy only; no complete lifecycle driver |
 | Node provisioning | Not yet automated |
 | Deployment | One controller installation with local SQLite; no active-active HA |
 | Selection | Compatibility, node availability/mode and capacity; no client speed test |
@@ -75,7 +78,7 @@ The detailed guides are currently in Russian.
 - [Configuration](docs/public/configuration.md) and [operations](docs/public/operations.md)
 - [Architecture](docs/public/architecture.md) and [driver development](docs/public/drivers.md)
 - [Contributing](docs/public/contributing.md), [security reporting](docs/public/security.md)
-- [Modernization roadmap](docs/public/roadmap.md)
+- [Roadmap to 1.0](docs/public/roadmap.md) and [support matrix](docs/public/support.md)
 
 ## Development
 
