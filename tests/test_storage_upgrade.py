@@ -17,6 +17,7 @@ from orchestrator.infrastructure.sqlite import migrations
 from orchestrator.infrastructure.sqlite.upgrade import rehearse
 from orchestrator.interfaces.cli.backup import backup, restore_backup
 from scripts import update
+from storage_scenarios import promote_schema_two
 
 
 def logical_snapshot(path):
@@ -136,9 +137,8 @@ def test_legacy_lease_migration_uses_maximum_old_policy_and_preserves_access(pai
     store.leases.retire(row)
     store.leases.reserve("a", "a-identity", "controller", 9, 9999999999, 245)
     store.leases.verify("a")
-    store.leases.fence("a", "old-boot", 12345, 245)
     with store.db() as db:
-        db.execute("ALTER TABLE control_leases DROP COLUMN fence_window_seconds")
+        db.execute("UPDATE control_leases SET fenced=1,fence_boot='old-boot',fence_after=12345")
         db.execute(f"PRAGMA user_version={version}")
     upgraded = Assignments(store.path.parent)
     state = upgraded.leases.state("a")
@@ -155,26 +155,18 @@ def test_legacy_lease_migration_uses_maximum_old_policy_and_preserves_access(pai
     assert logical_snapshot(store.path) == before
 
 
-def test_schema_one_migration_failure_is_atomic(tmp_path, monkeypatch):
+def test_bridge_does_not_migrate_schema_one(tmp_path, monkeypatch):
     store = Assignments(tmp_path / "state")
     store.leases.reserve("a", "identity", "controller", 1, 9999999999, 245)
-    store.leases.fence("a", "boot", 12345, 245)
-    with store.db() as db:
-        db.execute("ALTER TABLE control_leases DROP COLUMN fence_window_seconds")
-        db.execute("PRAGMA user_version=1")
+    store.leases.fence("a", "boot", 12345, 900)
     before = logical_snapshot(store.path)
-    original = migrations._durable_fence_window
 
     def fail(db):
-        original(db)
-        if db.execute("PRAGMA database_list").fetchone()[2]:
-            raise RuntimeError("synthetic interruption after lease migration")
+        raise AssertionError("bridge must not apply schema-2 migration")
 
     monkeypatch.setattr(migrations, "_durable_fence_window", fail)
-    with pytest.raises(RuntimeError):
-        Assignments(store.path.parent)
+    Assignments(store.path.parent)
     assert logical_snapshot(store.path) == before
-    monkeypatch.setattr(migrations, "_durable_fence_window", original)
     assert Assignments(store.path.parent).leases.state("a")["fence_window_seconds"] == 900
 
 
@@ -182,7 +174,6 @@ def test_schema_one_migration_failure_is_atomic(tmp_path, monkeypatch):
 def test_schema_one_is_validated_before_migration(tmp_path, damage):
     store = Assignments(tmp_path / "state")
     with store.db() as db:
-        db.execute("ALTER TABLE control_leases DROP COLUMN fence_window_seconds")
         db.execute("PRAGMA user_version=1")
         if damage == "missing_table":
             db.execute("DROP TABLE access_cache")
@@ -229,8 +220,11 @@ def make_settings(gateway, tmp_path):
     return settings
 
 
-def test_backup_restore_preserves_pending_switch_denial_and_credentials(pair, tmp_path):
+@pytest.mark.parametrize("version", [1, 2])
+def test_backup_restore_preserves_pending_switch_denial_and_credentials(pair, tmp_path, version):
     gateway, engines, states, _, ident, request = pair
+    if version == 2:
+        promote_schema_two(gateway.store)
     states["b"]["lose"] = "/v1/clients"
     with pytest.raises(OrchestratorError):
         Connections(gateway).switch(ident, request)
@@ -252,7 +246,8 @@ def test_backup_restore_preserves_pending_switch_denial_and_credentials(pair, tm
     assert store.switches.pending(ident) == pending
     assert store.leases.cached(ident)["denied"] == 1
     assert store.leases.state("a")["sequence"] == 9
-    assert store.leases.state("a")["fence_window_seconds"] == 700
+    assert store.leases.state("a")["fence_window_seconds"] == (700 if version == 2 else 900)
+    assert result["journal_version"] == version
     data = json.loads(Path(result["settings"]).read_text())
     assert Path(data["backend_token_file"]).read_text() == "b" * 40
     assert all(Path(n["api_key_file"]).parent == restored for n in data["nodes"])
@@ -297,6 +292,7 @@ def test_release_storage_contract_and_rollback_bounds(tmp_path):
     for previous in ({}, old):
         with pytest.raises(ValueError, match="rollback_schema_incompatible"):
             update.check_storage(store.path, current, previous)
+    promote_schema_two(store)
     with pytest.raises(ValueError, match="journal_schema_unsupported"):
         update.check_storage(store.path, old, current)
     future = {"storage": {"min_read": 0, "max_read": 3, "write": 3}}

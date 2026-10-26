@@ -13,6 +13,14 @@ from orchestrator.bootstrap import build_gateway
 from orchestrator.config.policy import RuntimePolicy
 from orchestrator.domain.models import OrchestratorError
 from orchestrator.infrastructure.sqlite.assignments import Assignments
+from storage_scenarios import promote_schema_two
+
+
+@pytest.fixture(params=[1, 2])
+def lease_pair(pair, request):
+    if request.param == 2:
+        promote_schema_two(pair[0].store)
+    return pair
 
 
 def extended_policy():
@@ -22,8 +30,8 @@ def extended_policy():
 
 
 @pytest.mark.parametrize("lost_reply", [False, True])
-def test_restart_and_lower_policy_cannot_shorten_issued_bound(pair, monkeypatch, lost_reply):
-    gateway, engines, states, _, ident, _ = pair
+def test_restart_and_lower_policy_cannot_shorten_issued_bound(lease_pair, monkeypatch, lost_reply):
+    gateway, engines, states, _, ident, _ = lease_pair
     enroll(gateway)
     export(gateway, ident)
     gateway.policy = extended_policy()
@@ -62,8 +70,8 @@ def test_restart_and_lower_policy_cannot_shorten_issued_bound(pair, monkeypatch,
     assert resumed.expired(node)
 
 
-def test_boot_change_restarts_full_persisted_wait_without_sliding_on_poll(pair, monkeypatch):
-    gateway, _, _, _, _, _ = pair
+def test_boot_change_restarts_full_persisted_wait_without_sliding_on_poll(lease_pair, monkeypatch):
+    gateway, _, _, _, _, _ = lease_pair
     gateway.policy = extended_policy()
     enroll(gateway)
     node = gateway.nodes["a"]
@@ -84,12 +92,14 @@ def test_boot_change_restarts_full_persisted_wait_without_sliding_on_poll(pair, 
     assert lease.expired(node)
 
 
-def test_larger_fencing_policy_is_durable_even_without_renewal(pair):
-    gateway, _, _, _, _, _ = pair
+def test_larger_fencing_policy_is_durable_even_without_renewal(lease_pair):
+    gateway, _, _, _, _, _ = lease_pair
     enroll(gateway)
     node = gateway.nodes["a"]
     lease = NodeLeases(gateway)
-    assert lease.state(node)["fence_window_seconds"] == 245
+    with gateway.store.db() as db:
+        version = db.execute("PRAGMA user_version").fetchone()[0]
+    assert lease.state(node)["fence_window_seconds"] == (245 if version == 2 else 900)
     gateway.policy = extended_policy()
     lease.fence(node)
     assert lease.state(node)["fence_window_seconds"] == 900
@@ -100,8 +110,8 @@ def test_larger_fencing_policy_is_durable_even_without_renewal(pair):
     assert lease.state(node)["fence_after"] >= before + 900
 
 
-def test_confirmed_revocation_does_not_wait_for_persisted_bound(pair):
-    gateway, engines, _, _, ident, _ = pair
+def test_confirmed_revocation_does_not_wait_for_persisted_bound(lease_pair):
+    gateway, engines, _, _, ident, _ = lease_pair
     gateway.policy = extended_policy()
     enroll(gateway)
     before = export(gateway, ident)
@@ -112,8 +122,8 @@ def test_confirmed_revocation_does_not_wait_for_persisted_bound(pair):
     assert not NodeLeases(gateway).state(gateway.nodes["a"])["fenced"]
 
 
-def test_failed_reservation_never_sends_permission(pair, monkeypatch):
-    gateway, engines, _, _, _, _ = pair
+def test_failed_reservation_never_sends_permission(lease_pair, monkeypatch):
+    gateway, engines, _, _, _, _ = lease_pair
     enroll(gateway)
     sequence = engines["a"].control_lease.describe()["sequence"]
 

@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from orchestrator.domain.inventory import NodeSettings
 from orchestrator.domain.panel import PanelNode, PanelAssignment, PanelOverview
-from orchestrator.infrastructure.sqlite.migrations import CURRENT_SCHEMA, schema_version
+from orchestrator.infrastructure.sqlite.migrations import validate_schema
 
 PAGE_SIZE = 50
 
@@ -21,7 +21,9 @@ class PanelJournal:
             db.row_factory = sqlite3.Row
             db.execute("PRAGMA query_only=ON")
             db.execute("BEGIN")
-            if schema_version(db) != CURRENT_SCHEMA:
+            try:
+                validate_schema(db)
+            except ValueError:
                 raise ValueError("panel_schema_unsupported")
 
             def count(sql):

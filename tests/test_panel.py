@@ -279,6 +279,17 @@ def test_unknown_schema_is_not_migrated(panel):
     assert gateway.store.path.read_bytes() == before
 
 
+def test_panel_reads_schema_two_without_migration(panel):
+    from storage_scenarios import promote_schema_two
+
+    client, gateway, _, _ = panel
+    promote_schema_two(gateway.store)
+    before = gateway.store.path.read_bytes()
+    response = client.get("/admin/v1/overview", headers=HEADERS)
+    assert response.status_code == 200
+    assert gateway.store.path.read_bytes() == before
+
+
 def test_busy_event_reader_drops_new_event_without_waiting(tmp_path):
     import fcntl
 

@@ -2,7 +2,8 @@
 
 import sqlite3
 
-CURRENT_SCHEMA = 2
+CURRENT_SCHEMA = 1
+MAX_READ_SCHEMA = 2
 MIN_SCHEMA = 0
 # Schema 1 did not record its policy. These are the largest bounds accepted by
 # that release, not the defaults. Never infer an old grant's bound from new config.
@@ -36,7 +37,10 @@ def _expected(version=CURRENT_SCHEMA):
         return _layout(db)
 
 
-def validate_schema(db, version=CURRENT_SCHEMA):
+def validate_schema(db, version=None):
+    version = schema_version(db) if version is None else version
+    if version not in (1, 2):
+        raise ValueError("journal_schema_unsupported")
     if schema_version(db) != version or _layout(db) != _expected(version):
         raise ValueError("journal_schema_invalid")
     for index in ("one_pending_switch", "assignments_device_protocol"):
@@ -55,7 +59,7 @@ def validate_schema(db, version=CURRENT_SCHEMA):
 def migrate(store):
     with store.db() as db:
         version = schema_version(db)
-        if not MIN_SCHEMA <= version <= CURRENT_SCHEMA:
+        if not MIN_SCHEMA <= version <= MAX_READ_SCHEMA:
             raise ValueError("journal_schema_unsupported")
         if version == 0:
             # Only known unversioned layouts are adopted. Do not stamp a foreign
@@ -67,13 +71,9 @@ def migrate(store):
                 ):
                     raise ValueError("journal_legacy_schema_invalid")
             _baseline(db)
-            _durable_fence_window(db)
             db.execute(f"PRAGMA user_version={CURRENT_SCHEMA}")
-        elif version == 1:
-            # Validate before ALTER; a damaged versioned database is not repaired.
-            validate_schema(db, version=1)
-            _durable_fence_window(db)
-            db.execute(f"PRAGMA user_version={CURRENT_SCHEMA}")
+        # Bridge release: accept schema 2 after rollback, but neither upgrade
+        # schema 1 nor downgrade schema 2. The next release owns that migration.
         validate_schema(db)
 
 
