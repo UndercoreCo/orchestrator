@@ -48,3 +48,18 @@ release-0.4.0 и TrustTunnel. Это отдельные работы, они о�
 
 Стендовые изменения lease-политики, новые адаптеры и production не входят в этап 0.
 Следующий этап начинается с контракта автономности и безопасного переноса.
+
+## Результаты проверки
+
+PR: https://github.com/UndercoreCo/orchestrator/pull/7 .
+Локально: 378 pytest PASS (Python 3.14), Ruff check/format, mypy, contracts,
+architecture (81 module / 0 exceptions), workflow gates, secret scan PASS.
+Первый sandbox-прогон не смог bind localhost; повтор с разрешённым локальным
+HTTP-сервером прошёл без изменения тестов. pip-audit: известных CVE нет.
+VitePress: 23 публичные страницы, внутренние страницы не входят в сборку.
+
+GitHub checks 40306041688 и 40306110242: Python 3.12/3.13/3.14 и security PASS;
+Documentation Pages 40306110052: build PASS, deploy в PR не запускается.
+Оставшиеся этапы заведены как issues #8–#13; критерии доступны из public/roadmap.md.
+Это подтверждает код и процедуру проверок, но новый publisher не выпускал настоящий
+новый тег: первый реальный запуск будет частью следующего согласованного релиза.

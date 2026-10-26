@@ -62,3 +62,12 @@ SSH/root для установки не становится полномочи�
 Не блокируют 1.0: active-active, Kubernetes, marketplace плагинов, дополнительные
 протоколы, выбор по скорости клиента, межпротокольная миграция, биллинг, новый GUI,
 iOS-релиз. Поддержка и исправления безопасности продолжаются после 1.0.
+
+## Задачи реализации
+
+- [Этап 1: Preserve existing tunnels during control-plane outages](https://github.com/UndercoreCo/orchestrator/issues/8) — критерии приёмки и границы работ.
+- [Этап 2: Ship standalone VPN adapters in the orchestrator repository](https://github.com/UndercoreCo/orchestrator/issues/9) — критерии приёмки и границы работ.
+- [Этап 3: Complete the backend API and isolate independent integrations](https://github.com/UndercoreCo/orchestrator/issues/10) — критерии приёмки и границы работ.
+- [Этап 4: Install a public release with a configuration on a clean server](https://github.com/UndercoreCo/orchestrator/issues/11) — критерии приёмки и границы работ.
+- [Этап 5: Version components and deliver verified updates](https://github.com/UndercoreCo/orchestrator/issues/12) — критерии приёмки и границы работ.
+- [Этап 6: Public release acceptance and independent onboarding](https://github.com/UndercoreCo/orchestrator/issues/13) — критерии приёмки и границы работ.
