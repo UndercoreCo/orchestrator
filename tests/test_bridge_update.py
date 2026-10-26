@@ -1,4 +1,4 @@
-"""Real updater/files/SQLite; systemd, dependencies and future producer are simulated."""
+"""Real updater/files/SQLite; systemd and dependency installation are simulated."""
 
 import io
 import json
@@ -10,7 +10,7 @@ import pytest
 
 from scripts import update
 from test_standalone import archive
-from storage_scenarios import promote_schema_two
+from storage_scenarios import bridge_runtime, bridge_manifest
 from orchestrator.infrastructure.sqlite.assignments import Assignments
 from orchestrator.infrastructure.sqlite.upgrade import rehearse
 
@@ -25,12 +25,12 @@ def test_bridge_update_keeps_live_revocation_and_sequence(
     previous.mkdir(parents=True)
     (root / "current").symlink_to(previous)
     old = {"min_read": 0, "max_read": 1, "write": 1}
-    bridge = json.loads(Path("contracts/storage.json").read_text())
+    bridge = bridge_manifest()
     target = bridge if transition == "old_to_bridge" else {**bridge, "write": 2}
     (previous / "release.json").write_text(
         json.dumps(
             {
-                "version": "0.5.1",
+                "version": "0.5.1" if transition == "old_to_bridge" else "0.5.2",
                 "commit": "b" * 40,
                 "journal_schema": 2,
                 "storage": old if transition == "old_to_bridge" else bridge,
@@ -42,7 +42,8 @@ def test_bridge_update_keeps_live_revocation_and_sequence(
     for unit in update.UNITS:
         (units / unit).write_text("old unit")
     state = tmp_path / "state"
-    store = Assignments(state)
+    with bridge_runtime():
+        store = Assignments(state)
     store.leases.reserve("node", "identity", "controller", 1, 9999999999, 245)
     store.leases.verify("node")
     with store.db() as db:
@@ -92,14 +93,15 @@ def test_bridge_update_keeps_live_revocation_and_sequence(
         if len(args) > 1 and args[1] == "-c":
             if outcome == "preflight_failed":
                 raise RuntimeError("synthetic_preflight_failed")
-            candidate = Assignments(args[3])
             if target["write"] == 2:
-                promote_schema_two(candidate)
-            rehearse(args[3])
+                rehearse(args[3])  # Actual producer migration on the copied journal.
+            else:
+                with bridge_runtime():
+                    rehearse(args[3])
         if args[:3] == ["systemctl", "start", update.UNITS[0]]:
             if (root / "current").resolve() != previous:
                 if target["write"] == 2:
-                    promote_schema_two(store)
+                    Assignments(state)  # Actual producer startup, not a simulated ALTER.
                 # Mutations performed after activation must survive failed health
                 # and code rollback; restoring the preflight database is unsafe.
                 with store.db() as db:
@@ -115,7 +117,8 @@ def test_bridge_update_keeps_live_revocation_and_sequence(
             else:
                 # Execute the bridge's real initializer against the live schema
                 # produced above. It must neither migrate nor replace the state.
-                reopened = Assignments(state)
+                with bridge_runtime():
+                    reopened = Assignments(state)
                 assert reopened.leases.state("node")["sequence"] == 2
                 assert reopened.leases.cached("connection")["denied"] == 1
         return b""
@@ -123,13 +126,15 @@ def test_bridge_update_keeps_live_revocation_and_sequence(
     monkeypatch.setattr(update, "run", run)
     monkeypatch.setattr(update.time, "sleep", lambda _: None)
 
+    target_version = "0.5.2" if transition == "old_to_bridge" else "0.5.3"
+
     def health(*args, **kwargs):
         if outcome == "healthy":
-            return io.BytesIO(b'{"status":"ok","version":"0.5.2"}')
+            return io.BytesIO(json.dumps({"status": "ok", "version": target_version}).encode())
         raise OSError("synthetic health failure")
 
     monkeypatch.setattr(update.urllib.request, "urlopen", health)
-    path, digest = archive(tmp_path, version="0.5.2", storage=target)
+    path, digest = archive(tmp_path, version=target_version, storage=target)
     if outcome == "healthy":
         assert update.update(path, digest)["status"] == "updated"
         assert (root / "current").resolve() != previous

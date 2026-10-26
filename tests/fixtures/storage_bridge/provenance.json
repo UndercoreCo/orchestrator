@@ -1,0 +1,17 @@
+{
+  "source": "https://github.com/UndercoreCo/orchestrator",
+  "commit": "1f5ddea02a82b14427ca94fb39c3c4f9e5cf5d21",
+  "version": "0.5.2 candidate",
+  "paths": {
+    "migrations.py": "orchestrator/infrastructure/sqlite/migrations.py",
+    "leases.py": "orchestrator/infrastructure/sqlite/leases.py",
+    "application_leases.py": "orchestrator/application/leases.py",
+    "storage.json": "contracts/storage.json"
+  },
+  "sha256": {
+    "migrations.py": "6d63edaac83483fc51e1f67d6797f6714c5f6135d9d7035e9e264cfde3cec2c0",
+    "leases.py": "8d1a30491b20d66691e9b4f8298d6220220c1b0e06deff75b48c57b29fca4dd2",
+    "application_leases.py": "a945eb3d7238fb3e6cbc31163743932b64f8c1c775f12b741848b342236bd3e4",
+    "storage.json": "341e68ad84b9d6d676c1179c281ab9459ac0ae9f5fbe8c7422ff2132377ae879"
+  }
+}

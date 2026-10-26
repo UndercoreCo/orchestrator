@@ -19,6 +19,12 @@ for path, digest in json.loads((fixture / "provenance.json").read_text())["sha25
         "Node fixture changed; review its contract"
     )
 print("Connection schema and pinned node-agent fixture verified")
+fixture = root / "tests/fixtures/storage_bridge"
+for path, digest in json.loads((fixture / "provenance.json").read_text())["sha256"].items():
+    assert hashlib.sha256((fixture / path).read_bytes()).hexdigest() == digest, (
+        "Storage bridge fixture changed; review rollback compatibility"
+    )
+print("Pinned storage bridge fixture verified")
 
 # Every raised machine code must be documented; secrets/messages are never sampled.
 
