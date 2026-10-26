@@ -1,0 +1,21 @@
+{
+  "source": "Undercore Amnezia agent",
+  "source_base_commit": "2688741decfa2e146558ba55e1ae1084670c10b5",
+  "source_state": "committed review candidate; not a released agent",
+  "snapshot_date": "2026-10-26",
+  "purpose": "Separate v2 integration fixture; v1 compatibility fixture remains unchanged",
+  "sha256": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/domain.py": "47fb6fec051ca2155ec851e06a97e93c27dee9664688a9330c6870f209278999",
+    "app/main.py": "39efed06df2c4c2650f5a7c62b4ec604976452b5cd0add5881f06ceb2598245a",
+    "app/diagnostics.py": "313539ae88363d1a095f66b20739147b48258ba4abaa9592c2611b61b15f16e0",
+    "app/backend.py": "45a9f4c976d16865d49e33b3d0216413b134772a85ec4475488d60ef170e6a9e",
+    "app/export.py": "8d0f24f846620e6aaf591c47b37d6c6b9597453f20096353d530a8a375b3fd78",
+    "app/control_lease.py": "283a4cadc66a740e0b04a4d893e482c91ef80be9b6bebfab3c04112e8567d590",
+    "app/usage.py": "ccc36c8737fea7408505ba6454c4244f580fec298da4ab844dd254b4cba765b9"
+  },
+  "source_commit": "df9a12f0a71e516ae056d550f9096940e069ac15",
+  "source_repository": "https://github.com/gatinrustam/wg",
+  "source_path": "services/amnezia-config-api",
+  "source_pr": "https://github.com/gatinrustam/wg/pull/2"
+}

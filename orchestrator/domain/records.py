@@ -106,6 +106,7 @@ class LeaseObservation:
     required: bool
     controller_id: str | None
     sequence: int
+    max_offline_seconds: int = 0
 
 
 @dataclass(frozen=True)
@@ -113,3 +114,4 @@ class LeaseGrant:
     controller_id: str
     sequence: int
     valid_until: str
+    offline_until: str | None = None
