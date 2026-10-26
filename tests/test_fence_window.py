@@ -49,13 +49,16 @@ def test_restart_and_lower_policy_cannot_shorten_issued_bound(pair, monkeypatch,
     monkeypatch.setattr("orchestrator.application.leases.time.monotonic", lambda: clock)
     with pytest.raises(OrchestratorError, match="lease_waiting"):
         Recovery(restarted).recover(ident, request())
-    assert resumed.state(node)["fence_after"] == clock + 900
+    deadline = resumed.state(node)["fence_after"]
+    assert deadline == clock + 900
     clock += 246  # The old default fence would have allowed a second active peer.
     assert reconcile(restarted)["completed"] == 0
     assert not engines["b"].rows()
-    clock += 653
+    clock = deadline - 1
     assert not resumed.expired(node)
-    clock += 1
+    # Use the persisted boundary: summing fractional monotonic values in a
+    # different order can leave the fake clock one floating-point ULP early.
+    clock = deadline
     assert resumed.expired(node)
 
 
@@ -73,11 +76,11 @@ def test_boot_change_restarts_full_persisted_wait_without_sliding_on_poll(pair, 
     assert not lease.expired(node)
     deadline = lease.state(node)["fence_after"]
     assert deadline == clock + 900
-    clock += 899
+    clock = deadline - 1
     lease.fence(node)
     assert lease.state(node)["fence_after"] == deadline
     assert not lease.expired(node)
-    clock += 1
+    clock = deadline
     assert lease.expired(node)
 
 
