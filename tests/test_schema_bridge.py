@@ -9,7 +9,7 @@ from test_node_switch import pair, export
 from test_leases import enroll
 from test_recovery import request
 from test_storage_upgrade import logical_snapshot
-from storage_scenarios import promote_schema_two
+from storage_scenarios import promote_schema_two, bridge_runtime, bridge_manifest
 from orchestrator.application.leases import NodeLeases
 from orchestrator.application.recovery import Recovery
 from orchestrator.bootstrap import build_gateway
@@ -18,6 +18,15 @@ from orchestrator.infrastructure.sqlite.assignments import Assignments
 from orchestrator.infrastructure.sqlite.upgrade import rehearse
 from orchestrator.infrastructure.sqlite.migrations import validate_schema
 from scripts.update import check_storage
+
+
+@pytest.fixture(autouse=True)
+def run_bridge_code(monkeypatch):
+    with bridge_runtime():
+        from orchestrator.application.leases import NodeLeases as BridgeLeases
+
+        monkeypatch.setitem(globals(), "NodeLeases", BridgeLeases)
+        yield
 
 
 def test_old_fence_requires_full_legacy_wait_once(pair, monkeypatch):
@@ -95,7 +104,7 @@ def test_rollback_preserves_larger_bound_and_live_denial(pair, monkeypatch):
 def test_storage_manifest_allows_two_step_upgrade_but_never_unsafe_downgrade(tmp_path):
     from pathlib import Path
 
-    bridge = {"storage": json.loads(Path("contracts/storage.json").read_text())}
+    bridge = {"storage": bridge_manifest()}
     old = {"storage": {"min_read": 0, "max_read": 1, "write": 1}}
     future = {"storage": {"min_read": 0, "max_read": 2, "write": 2}}
     store = Assignments(tmp_path / "state")

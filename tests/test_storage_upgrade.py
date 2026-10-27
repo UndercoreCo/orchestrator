@@ -17,7 +17,22 @@ from orchestrator.infrastructure.sqlite import migrations
 from orchestrator.infrastructure.sqlite.upgrade import rehearse
 from orchestrator.interfaces.cli.backup import backup, restore_backup
 from scripts import update
-from storage_scenarios import promote_schema_two
+from storage_scenarios import promote_schema_two, bridge_runtime
+
+
+@pytest.fixture
+def legacy_pair(request):
+    with bridge_runtime():
+        value = request.getfixturevalue("pair")
+    return value
+
+
+@pytest.fixture
+def versioned_pair(request, version):
+    if version == 1:
+        with bridge_runtime():
+            return request.getfixturevalue("pair")
+    return request.getfixturevalue("pair")
 
 
 def logical_snapshot(path):
@@ -129,8 +144,8 @@ def test_concurrent_initialization_commits_one_version(tmp_path):
 
 
 @pytest.mark.parametrize("version", [0, 1])
-def test_legacy_lease_migration_uses_maximum_old_policy_and_preserves_access(pair, version):
-    gateway, _, _, _, ident, _ = pair
+def test_legacy_lease_migration_uses_maximum_old_policy_and_preserves_access(legacy_pair, version):
+    gateway, _, _, _, ident, _ = legacy_pair
     store = gateway.store
     row = store.get(client_id=ident)
     store.leases.deny(row, True)
@@ -155,24 +170,45 @@ def test_legacy_lease_migration_uses_maximum_old_policy_and_preserves_access(pai
     assert logical_snapshot(store.path) == before
 
 
-def test_bridge_does_not_migrate_schema_one(tmp_path, monkeypatch):
-    store = Assignments(tmp_path / "state")
+@pytest.mark.parametrize("phase", ["column", "version"])
+def test_schema_one_migration_is_atomic(tmp_path, monkeypatch, phase):
+    with bridge_runtime():
+        store = Assignments(tmp_path / "state")
     store.leases.reserve("a", "identity", "controller", 1, 9999999999, 245)
     store.leases.fence("a", "boot", 12345, 900)
     before = logical_snapshot(store.path)
+    original = migrations._durable_fence_window
+    validate = migrations.validate_schema
 
-    def fail(db):
-        raise AssertionError("bridge must not apply schema-2 migration")
+    def fail_column(db):
+        original(db)
+        if db.execute("PRAGMA database_list").fetchone()[2]:
+            raise RuntimeError("interrupted after adding column and resetting fence")
 
-    monkeypatch.setattr(migrations, "_durable_fence_window", fail)
-    Assignments(store.path.parent)
+    def fail_version(db, version=None):
+        validate(db, version)
+        if migrations.schema_version(db) == 2:
+            raise RuntimeError("interrupted after version change")
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(
+            migrations,
+            "_durable_fence_window" if phase == "column" else "validate_schema",
+            fail_column if phase == "column" else fail_version,
+        )
+        with pytest.raises(RuntimeError, match="interrupted"):
+            Assignments(store.path.parent)
     assert logical_snapshot(store.path) == before
-    assert Assignments(store.path.parent).leases.state("a")["fence_window_seconds"] == 900
+    upgraded = Assignments(store.path.parent)
+    assert logical_snapshot(store.path)[0] == 2
+    assert upgraded.leases.state("a")["fence_boot"] == ""
+    assert upgraded.leases.state("a")["fence_window_seconds"] == 900
 
 
 @pytest.mark.parametrize("damage", ["missing_table", "wrong_index"])
 def test_schema_one_is_validated_before_migration(tmp_path, damage):
-    store = Assignments(tmp_path / "state")
+    with bridge_runtime():
+        store = Assignments(tmp_path / "state")
     with store.db() as db:
         db.execute("PRAGMA user_version=1")
         if damage == "missing_table":
@@ -221,10 +257,10 @@ def make_settings(gateway, tmp_path):
 
 
 @pytest.mark.parametrize("version", [1, 2])
-def test_backup_restore_preserves_pending_switch_denial_and_credentials(pair, tmp_path, version):
-    gateway, engines, states, _, ident, request = pair
-    if version == 2:
-        promote_schema_two(gateway.store)
+def test_backup_restore_preserves_pending_switch_denial_and_credentials(
+    versioned_pair, tmp_path, version
+):
+    gateway, engines, states, _, ident, request = versioned_pair
     states["b"]["lose"] = "/v1/clients"
     with pytest.raises(OrchestratorError):
         Connections(gateway).switch(ident, request)
@@ -247,7 +283,7 @@ def test_backup_restore_preserves_pending_switch_denial_and_credentials(pair, tm
     assert store.leases.cached(ident)["denied"] == 1
     assert store.leases.state("a")["sequence"] == 9
     assert store.leases.state("a")["fence_window_seconds"] == (700 if version == 2 else 900)
-    assert result["journal_version"] == version
+    assert result["journal_version"] == 2
     data = json.loads(Path(result["settings"]).read_text())
     assert Path(data["backend_token_file"]).read_text() == "b" * 40
     assert all(Path(n["api_key_file"]).parent == restored for n in data["nodes"])

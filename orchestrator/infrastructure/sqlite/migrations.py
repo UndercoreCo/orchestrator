@@ -2,7 +2,7 @@
 
 import sqlite3
 
-CURRENT_SCHEMA = 1
+CURRENT_SCHEMA = 2
 MAX_READ_SCHEMA = 2
 MIN_SCHEMA = 0
 # Schema 1 did not record its policy. These are the largest bounds accepted by
@@ -71,9 +71,12 @@ def migrate(store):
                 ):
                     raise ValueError("journal_legacy_schema_invalid")
             _baseline(db)
+            _durable_fence_window(db)
             db.execute(f"PRAGMA user_version={CURRENT_SCHEMA}")
-        # Bridge release: accept schema 2 after rollback, but neither upgrade
-        # schema 1 nor downgrade schema 2. The next release owns that migration.
+        elif version == 1:
+            validate_schema(db, version=1)
+            _durable_fence_window(db)
+            db.execute(f"PRAGMA user_version={CURRENT_SCHEMA}")
         validate_schema(db)
 
 

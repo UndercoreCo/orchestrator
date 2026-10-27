@@ -13,14 +13,22 @@ from orchestrator.bootstrap import build_gateway
 from orchestrator.config.policy import RuntimePolicy
 from orchestrator.domain.models import OrchestratorError
 from orchestrator.infrastructure.sqlite.assignments import Assignments
-from storage_scenarios import promote_schema_two
+from storage_scenarios import promote_schema_two, bridge_runtime
 
 
 @pytest.fixture(params=[1, 2])
-def lease_pair(pair, request):
-    if request.param == 2:
-        promote_schema_two(pair[0].store)
-    return pair
+def lease_pair(request, monkeypatch):
+    # Construct the real agent pair under the pinned bridge for schema-1 cases.
+    # The schema-2 cases exercise the current producer.
+    if request.param == 1:
+        with bridge_runtime():
+            from orchestrator.application.leases import NodeLeases as BridgeLeases
+
+            monkeypatch.setitem(globals(), "NodeLeases", BridgeLeases)
+            yield request.getfixturevalue("pair")
+        return
+    pair = request.getfixturevalue("pair")
+    yield pair
 
 
 def extended_policy():
