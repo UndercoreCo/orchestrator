@@ -15,7 +15,7 @@ from orchestrator.domain.inventory import NodeSettings
 from orchestrator.infrastructure.secrets import read_secret
 from orchestrator.infrastructure.sqlite.inventory import read_inventory
 from orchestrator.infrastructure.sqlite.assignments import Assignments
-from orchestrator.infrastructure.sqlite.migrations import CURRENT_SCHEMA, schema_version
+from orchestrator.infrastructure.sqlite.migrations import MAX_READ_SCHEMA, schema_version
 from orchestrator.version import current_version
 
 
@@ -46,7 +46,7 @@ def backup(settings_path, destination):
         if snapshot.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
             raise ValueError("Invalid snapshot")
         version = schema_version(snapshot)
-        if not 0 <= version <= CURRENT_SCHEMA:
+        if not 0 <= version <= MAX_READ_SCHEMA:
             raise ValueError("journal_schema_unsupported")
     audit_source = Path(settings.state_directory) / "operator.sqlite3"
     if audit_source.exists():
@@ -121,7 +121,7 @@ def verified_files(source):
     }:
         raise ValueError("backup_checksum_invalid")
     version = manifest.get("journal_version")
-    if type(version) is not int or not 0 <= version <= CURRENT_SCHEMA:
+    if type(version) is not int or not 0 <= version <= MAX_READ_SCHEMA:
         raise ValueError("journal_schema_unsupported")
     return files, version
 
@@ -187,9 +187,11 @@ def restore_backup(source, destination):
     write_private(
         destination / "settings.json", encode(settings.model_dump(exclude={"admin_token_file"}))
     )
+    with store.db() as db:
+        restored_version = schema_version(db)
     return {
         "status": "restored_for_review",
         "directory": str(destination),
         "settings": str(destination / "settings.json"),
-        "journal_version": CURRENT_SCHEMA,
+        "journal_version": restored_version,
     }

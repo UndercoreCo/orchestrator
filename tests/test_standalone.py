@@ -117,7 +117,7 @@ def test_cli_rejects_unsafe_api_destinations(url):
         cli.request(url, "secret", "GET", "/v1/health")
 
 
-def archive(tmp_path, *, extra=None, version="0.1.0"):
+def archive(tmp_path, *, extra=None, version="0.1.0", storage=None):
     paths = [
         "VERSION",
         "requirements.lock",
@@ -131,12 +131,16 @@ def archive(tmp_path, *, extra=None, version="0.1.0"):
     files["VERSION"] = version.encode()
     if extra:
         files.update(extra)
+    if storage is not None:
+        files["contracts/storage.json"] = json.dumps(storage).encode()
     metadata = {
         "version": version,
         "commit": "a" * 40,
         "journal_schema": 1,
         "files": {k: hashlib.sha256(v).hexdigest() for k, v in files.items()},
     }
+    if storage is not None:
+        metadata["storage"] = storage
     files["release.json"] = json.dumps(metadata).encode()
     path = tmp_path / "release.tar.gz"
     with tarfile.open(path, "w:gz") as tar:
