@@ -25,6 +25,12 @@ for path, digest in json.loads((fixture / "provenance.json").read_text())["sha25
         "Storage bridge fixture changed; review rollback compatibility"
     )
 print("Pinned storage bridge fixture verified")
+fixture = root / "tests/fixtures/amnezia_offline_agent"
+for path, digest in json.loads((fixture / "provenance.json").read_text())["sha256"].items():
+    assert hashlib.sha256((fixture / path).read_bytes()).hexdigest() == digest, (
+        "Offline agent fixture changed; refresh from reviewed agent source"
+    )
+print("Offline agent candidate fixture verified")
 
 # Every raised machine code must be documented; secrets/messages are never sampled.
 

@@ -45,6 +45,7 @@ class SelectionPolicy(PolicyModel):
 
 
 class LeasePolicy(PolicyModel):
+    offline_duration_seconds: int = Field(default=0, ge=0, le=3600)
     duration_seconds: int = Field(default=90, ge=90, le=120)
     max_node_lease_seconds: int = Field(default=120, ge=120, le=300)
     fence_grace_seconds: int = Field(default=125, ge=125, le=600)
@@ -52,6 +53,8 @@ class LeasePolicy(PolicyModel):
 
     @model_validator(mode="after")
     def safe_bounds(self):
+        if 0 < self.offline_duration_seconds < 300:
+            raise ValueError("Offline permission must be disabled or at least 300 seconds")
         if self.duration_seconds > self.max_node_lease_seconds:
             raise ValueError("Lease duration exceeds the node lease bound")
         return self

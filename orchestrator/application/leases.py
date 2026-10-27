@@ -74,19 +74,27 @@ class NodeLeases:
             raise OrchestratorError("controller_conflict", 409)
         if lease.required and lease.sequence >= sequence:
             raise OrchestratorError("lease_sequence_conflict", 409)
-        deadline = time.time() + self.gateway.policy.leases.duration_seconds
+        policy = self.gateway.policy.leases
+        offline_until = None
+        if policy.offline_duration_seconds:
+            if lease.max_offline_seconds < policy.offline_duration_seconds:
+                raise OrchestratorError("control_lease_unavailable", 503)
+            # Use the observed node clock for the absolute permission deadline.
+            # Network delay consumes permission; it never adds to the bound.
+            offline_until = timestamp(lease.server_time + policy.offline_duration_seconds)
+        deadline = time.time() + policy.duration_seconds
         # Caller holds the node lock across reservation and HTTP. Persist the
         # upper bound BEFORE sending; an uncertain response must not shorten it.
-        policy = self.gateway.policy.leases
         self.store.leases.reserve(
             node.id,
             node.server_id,
             controller,
             sequence,
             deadline,
-            policy.max_node_lease_seconds + policy.fence_grace_seconds,
+            max(policy.max_node_lease_seconds, policy.offline_duration_seconds)
+            + policy.fence_grace_seconds,
         )
-        transport.renew(node, LeaseGrant(controller, sequence, timestamp(deadline)))
+        transport.renew(node, LeaseGrant(controller, sequence, timestamp(deadline), offline_until))
         self.store.leases.verify(node.id)
 
     def fence(self, node):

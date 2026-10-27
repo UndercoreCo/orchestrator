@@ -78,6 +78,11 @@ python3 -m venv .venv
 `tests/fixtures/storage_bridge` содержит неизменённые migrations, LeaseRepository
 и NodeLeases переходного кандидата 0.5.2 с commit/path/hash в provenance.json.
 Они используются для проверки отката после [активации схемы 2](schema-2-activation-2026-10-26.md).
+Для [автономного разрешения](offline-permission-2026-10-26.md) есть отдельный
+`tests/fixtures/amnezia_offline_agent`, скопированный из изменённого исходника агента.
+Его provenance закрепляет commit исходника из WG PR #2; все 8 файлов сверены
+с Git побайтно. Это кандидат для ревью; v1 fixture прежний.
+
 Остальные неизменённые части приложения общие; это не эмуляция полного установленного
 Linux-релиза. Проверка контрактов защищает обе закреплённые копии.
 
