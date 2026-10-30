@@ -71,6 +71,7 @@ def test_each_generation_preserves_native_and_individual_client_fields(parameter
     assert protocol["isThirdPartyConfig"] is True
     client = json.loads(protocol["last_config"])
     assert client["config"] == native
+    assert payload["hostName"] == client["hostName"] == "vpn.example.test"
     assert client["client_priv_key"] == client["server_pub_key"] == client["psk_key"] == KEY
     assert (
         client["client_pub_key"] == client["clientId"]

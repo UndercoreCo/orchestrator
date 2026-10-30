@@ -101,3 +101,25 @@ HTTP-слой не содержит ветвления по этим прото�
 только на код, который продолжает исполнять этот контракт.
 
 Для разработки другого протокола: [руководство по драйверам](drivers.md).
+
+
+## DNS names in AmneziaWG exports
+
+Configure a stable node-specific DNS name in the node agent's public `endpoint`
+(for example `vpn-node-1.example.net:8443`). This is separate from the node's
+management `api_url`, listener bind address and egress/NAT IP. Do not resolve the
+name into a numeric IP when generating exports. The Amnezia adapter preserves it
+in native configurations, guest `.vpn` documents, QR payloads and native manifests.
+
+Changing only this endpoint on the same server does not require creating a new
+assignment or changing keys. Existing downloaded/imported files are static:
+re-export and import the same assignment once to replace their old literal IP.
+For later DNS changes, clients may need to reconnect to resolve the new address;
+TTL alone does not guarantee live tunnel migration. A DNS name must keep pointing
+to the node that owns the matching peer and server keys.
+
+The current AWG executor and state agent cache endpoint metadata at startup.
+Follow the node's controlled restart procedure after editing configuration, with
+a protected backup and rollback. This can briefly interrupt its tunnels; editing
+a file alone is not evidence that exports now contain the new endpoint.
+This guidance concerns AmneziaWG; other drivers define their own address contracts.

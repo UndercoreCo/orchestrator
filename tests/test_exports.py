@@ -121,3 +121,53 @@ def test_qr_encodes_requested_protocol_document_and_rejects_oversize(monkeypatch
     with pytest.raises(OrchestratorError, match="qr_unavailable"):
         adapter.export(lambda _: contents["conf"] + "x" * 2332, "qr")
     assert len(captured) == 2
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+def test_endpoint_migration_preserves_identity_in_files_qr_and_native_manifest(pilot, monkeypatch, legacy):
+    from test_amnezia_profile import decode
+    from orchestrator.infrastructure.drivers import exports
+
+    gateway, engine, client, url, query = setup(pilot)
+    pilot[2]["legacy"] = legacy
+    before = client.post(url, headers=HEADERS, json=query).json()["document"]["data"]
+    assignment = gateway.store.rows()[0]
+    peer = engine.rows()[0]
+    engine.backend.config["endpoint"] = "vpn.example.test:8443"
+    conf_response = client.post(url, headers=HEADERS, json=query)
+    assert conf_response.status_code == 200
+    native = conf_response.json()["document"]["data"]
+    # The only changed field is Endpoint: keys, addresses, port and parameters survive.
+    assert native == before.replace("192.0.2.1:8443", "vpn.example.test:8443")
+    vpn_response = client.post(url, headers=HEADERS, json={**query, "format": "amnezia-vpn"})
+    assert vpn_response.status_code == 200
+    vpn = vpn_response.json()["document"]["data"]
+    payload = decode(vpn)
+    embedded = json.loads(payload["containers"][0]["awg"]["last_config"])
+    assert payload["hostName"] == embedded["hostName"] == "vpn.example.test"
+    assert embedded["port"] == 8443 and embedded["config"] == native
+
+    encoded = []
+    original = exports.segno.make_qr
+
+    def capture(data, **kwargs):
+        encoded.append(data)
+        return original(data, **kwargs)
+
+    monkeypatch.setattr(exports.segno, "make_qr", capture)
+    for source in ("conf", "amnezia-vpn"):
+        response = client.post(url, headers=HEADERS, json={
+            **query, "format": "qr", "qr_content_format": source,
+        })
+        assert response.status_code == 200
+    assert encoded == [native.encode(), vpn.encode()]
+    manifest = client.post(url.removesuffix("export") + "configuration", headers=HEADERS, json={
+        "schema_version": 1, "device_id": query["device_id"],
+        "capabilities": [{"protocol": "amneziawg", "configuration_version": 1}],
+    })
+    assert manifest.status_code == 200
+    assert manifest.json()["configuration"]["data"] == native
+    assert manifest.json()["connection_id"] == assignment["client_id"]
+    assert len(gateway.store.rows()) == len(engine.rows()) == 1
+    assert engine.rows()[0]["client_id"] == peer["client_id"]
+    assert engine.rows()[0]["public_key"] == peer["public_key"]
